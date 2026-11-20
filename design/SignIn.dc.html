@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sign in</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&amp;family=Space+Grotesk:wght@300;400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:Inter,system-ui,sans-serif;color:#111114}
+a{color:#2457C5}a:hover{color:#1A3F8F}
+.pg-btn{border:0;background:transparent;font:inherit;color:#111114;cursor:pointer;border-radius:10px;padding:0;display:flex;align-items:center}
+.pg-btn:hover{background:#F0F1F4}
+.pg-btn:focus-visible,.pg-link:focus-visible,.pg-field:focus-visible{outline:2px solid #2457C5;outline-offset:2px}
+.pg-link{text-decoration:none;color:#111114;box-sizing:border-box}
+.pg-link:hover{color:#111114}
+.pg-card:hover{border-color:#8A8B92}
+.pg-tpl{transition:box-shadow 180ms ease,transform 180ms ease,border-color 180ms ease}
+.pg-tpl:hover{box-shadow:0 10px 28px rgba(20,20,30,0.10);transform:translateY(-2px)}
+@media (prefers-reduced-motion: reduce){.pg-tpl{transition:none}.pg-tpl:hover{transform:none}}
+.pg-field{width:100%;box-sizing:border-box;height:44px;border:1px solid #DCDDE2;border-radius:12px;padding:0 14px;font:inherit;font-size:15px;color:#111114;background:#FFFFFF}
+.pg-field::placeholder{color:#74757C}
+@keyframes si-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes si-blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(0.08)}}
+@keyframes si-shakeA{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+@keyframes si-shakeB{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+@media (prefers-reduced-motion: reduce){.si-bot,.si-bot *{animation:none !important;transition:none !important}}
+</style>
+</helmet>
+<main onPointerMove="{{onMove}}" style="position: relative; min-height: 100vh; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 72px 16px 40px; background-color: #FFFFFF; background-image: linear-gradient(rgba(0,0,0,0.016) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.016) 1px, transparent 1px); background-size: 40px 40px;">
+  <button class="pg-btn" type="button" aria-label="{{t.language}}" onClick="{{flipLang}}" style="position: absolute; top: 16px; right: 16px; height: 40px; padding: 0 14px; background: #FFFFFF; border: 1px solid #E3E4E8; border-radius: 12px; font-size: 14px">{{langShort}}</button>
+  <div style="position: relative; width: 100%; max-width: 420px; margin-top: 44px; box-sizing: border-box; padding: 64px 28px 24px; background: #FFFFFF; border: 1px solid #E3E4E8; border-radius: 26px; box-shadow: 0 16px 44px rgba(20,20,30,0.09); display: flex; flex-direction: column; gap: 18px">
+    <div class="si-bot" aria-hidden="true" ref="{{botRef}}" style="{{bot.wrap}}">
+      <svg viewBox="0 0 100 100" width="88" height="88" style="display: block; overflow: visible">
+        <circle cx="50" cy="50" r="52" fill="#FFFFFF"></circle>
+        <path d="M50 4V-9" stroke="#FFFFFF" stroke-width="11.5" stroke-linecap="round"></path>
+        <circle cx="50" cy="-13" r="10" fill="#FFFFFF"></circle>
+        <path d="M50 3V-9" stroke="#2B2B2B" stroke-width="3.6" stroke-linecap="round"></path>
+        <circle cx="50" cy="-13" r="6" fill="#EF5B4C" stroke="#2B2B2B" stroke-width="3.2"></circle>
+        <circle cx="50" cy="50" r="47" fill="#BFD7FF" stroke="#2B2B2B" stroke-width="3.4"></circle>
+        <path d="M21.5 36a31 31 0 0 1 13.5-14" fill="none" stroke="#FFFFFF" stroke-width="3.6" stroke-linecap="round" opacity="0.85"></path>
+        <path d="M92.500 43A44 44 0 0 1 31.500 90A60 60 0 0 0 92.500 43Z" fill="#9CC0F8"></path>
+        <ellipse cx="18.500" cy="62" rx="5.500" ry="3.400" fill="#F7A8C0" opacity="0.9"></ellipse>
+        <ellipse cx="81.500" cy="62" rx="5.500" ry="3.400" fill="#F7A8C0" opacity="0.9"></ellipse>
+        <ellipse cx="37" cy="50" rx="11" ry="13" fill="#FFFFFF" stroke="#2B2B2B" stroke-width="3" style="{{bot.glL}}"></ellipse>
+        <ellipse cx="63" cy="50" rx="11" ry="13" fill="#FFFFFF" stroke="#2B2B2B" stroke-width="3" style="{{bot.glR}}"></ellipse>
+        <g style="{{bot.eyesOuter}}"><g fill="none" stroke="#1F2024" stroke-linecap="round" stroke-linejoin="round" style="{{bot.eyesInner}}">
+          <path d="{{bot.eyeL}}" stroke-width="{{bot.wL}}"></path>
+          <path d="{{bot.eyeR}}" stroke-width="{{bot.wR}}"></path>
+          <circle cx="38.6" cy="47.4" r="1.9" fill="#FFFFFF" stroke="none" style="{{bot.glL}}"></circle>
+          <circle cx="64.6" cy="47.4" r="1.9" fill="#FFFFFF" stroke="none" style="{{bot.glR}}"></circle>
+        </g></g>
+      </svg>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px; text-align: center">
+      <h1 style="margin: 0; font-family: 'Space Grotesk', Inter, sans-serif; font-size: 28px; font-weight: 300; letter-spacing: -0.02em">{{title}}</h1>
+    </div>
+    <form onSubmit="{{onSubmit}}" style="display: flex; flex-direction: column; gap: 12px">
+      <sc-if value="{{isUp}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <label for="si-name" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap">{{t.name}}</label>
+          <div style="position: relative"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 15px; top: 15px; color: #6B6C73; pointer-events: none"><circle cx="12" cy="9" r="3.6"></circle><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"></path></svg><input id="si-name" class="pg-field" type="text" autocomplete="off" placeholder="{{t.namePh}}" value="{{name}}" onChange="{{onName}}" onFocus="{{focusName}}" onBlur="{{blur}}" style="height: 48px; padding-left: 44px"></div>
+        </div>
+      </sc-if>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <label for="si-email" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap">{{t.email}}</label>
+        <div style="position: relative"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 15px; top: 15px; color: #6B6C73; pointer-events: none"><rect x="3.5" y="5.5" width="17" height="13" rx="2.5"></rect><path d="M4.5 8l7.5 5.5L19.5 8"></path></svg><input id="si-email" class="pg-field" type="email" autocomplete="off" placeholder="{{t.emailPh}}" value="{{email}}" onChange="{{onEmail}}" onFocus="{{focusEmail}}" onBlur="{{blur}}" style="height: 48px; padding-left: 44px"></div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <label for="si-pw" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap">{{t.password}}</label>
+        <div style="position: relative">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 15px; top: 15px; color: #6B6C73; pointer-events: none"><rect x="5.5" y="11" width="13" height="9.5" rx="2.5"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg><input id="si-pw" class="pg-field" type="{{pwType}}" autocomplete="off" placeholder="{{t.pwPh}}" value="{{pw}}" onChange="{{onPw}}" onFocus="{{focusPw}}" onBlur="{{blur}}" style="height: 48px; padding-left: 44px; padding-right: 52px">
+          <button class="pg-btn" type="button" aria-label="{{showLabel}}" aria-pressed="{{showPressed}}" onPointerDown="{{keepFocus}}" onClick="{{toggleShow}}" style="position: absolute; right: 4px; top: 4px; width: 40px; height: 40px; justify-content: center; color: #3A3B40">
+            <sc-if value="{{pwHidden}}" hint-placeholder-val="{{ true }}"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.700" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c2.500-4.500 5.500-6.500 9-6.500s6.500 2 9 6.500c-2.500 4.500-5.500 6.500-9 6.500S5.500 16.500 3 12z"/><circle cx="12" cy="12" r="2.800"/></svg></sc-if>
+            <sc-if value="{{pwShown}}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.700" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9c2.200 3.400 4.900 5 8 5s5.800-1.600 8-5M12 14v3M7 12.800l-1.500 2.400M17 12.800l1.500 2.400"/></svg></sc-if>
+          </button>
+        </div>
+      </div>
+      <sc-if value="{{hasError}}" hint-placeholder-val="{{ false }}">
+        <p role="alert" style="margin: 0; font-size: 13px; color: #B42318">{{error}}</p>
+      </sc-if>
+      <sc-if value="{{ready}}" hint-placeholder-val="{{ false }}">
+        <a class="pg-link" href="Workspace.dc.html" style="{{primary}}"><span>{{go}}</span><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+      </sc-if>
+      <sc-if value="{{notReady}}" hint-placeholder-val="{{ true }}">
+        <button class="pg-btn" type="submit" style="{{primary}}"><span>{{go}}</span><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
+      </sc-if>
+    </form>
+    <div aria-hidden="true" style="display: flex; align-items: center; gap: 12px; color: #6B6C73; font-size: 13px"><span style="flex: 1 1 auto; height: 1px; background: #E3E4E8"></span><span>{{t.or}}</span><span style="flex: 1 1 auto; height: 1px; background: #E3E4E8"></span></div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px">
+      <a class="pg-link" href="Workspace.dc.html" style="{{secondary}}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="15.5" r="3.5"></circle><path d="M11 13l8.5-8.5M16 8.500l2.500 2.500"></path></svg><span>{{t.sso}}</span></a>
+      <button class="pg-btn" type="button" onClick="{{sendLink}}" style="{{secondary}}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.500 11.500L20 4l-5.500 16-3-6.500z"></path><path d="M11.500 13.500L20 4"></path></svg><span>{{t.magic}}</span></button>
+    </div>
+    <sc-if value="{{sent}}" hint-placeholder-val="{{ false }}">
+      <p role="status" style="margin: 0; font-size: 13px; line-height: 1.5; color: #1F6B3A">{{sentMsg}}</p>
+    </sc-if>
+    <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px"><button class="pg-btn" type="button" onClick="{{toggleMode}}" style="height: 36px; padding: 0 10px; gap: 6px; color: #2457C5; font-size: 14px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="9" r="3.6"></circle><path d="M3 20c.8-3.600 3.600-5.500 7-5.500 1.500 0 2.800.400 3.900 1M18 14v6M15 17h6"></path></svg><span>{{switchAction}}</span></button><sc-if value="{{isIn}}" hint-placeholder-val="{{ true }}"><a href="#si-email" style="height: 36px; padding: 0 10px; display: flex; align-items: center; gap: 6px; font-size: 14px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.500"></circle><path d="M9.700 9.500a2.400 2.400 0 1 1 3.500 2.200c-.800.500-1.200 1-1.200 1.900M12 16.800v.200"></path></svg><span>{{t.forgot}}</span></a></sc-if></div>
+    <a class="pg-link" href="Main.dc.html" style="margin: 0 -28px -24px; padding: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; border-top: 1px solid #EEEFF2; border-radius: 0 0 26px 26px; background: #FAFAFB; font-size: 14px"><span>{{t.guest}}</span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.800" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+  </div>
+</main>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"language":{"editor":"enum","default":"English","options":["English","简体中文"]},"$preview":{"width":1440,"height":900}}'>
+var T = {
+  en: { language: 'Language', signIn: 'Sign in', create: 'Create account', titleIn: 'Welcome back', titleUp: 'Create account', subIn: 'Sign in to share boards and work with your team.', subUp: 'One account for all your workspaces.',
+    name: 'Name', namePh: 'Name', email: 'Email', emailPh: 'Email', password: 'Password', pwPh: 'Password', show: 'Show', hide: 'Hide',
+    goIn: 'Sign in', goUp: 'Create account', or: 'or', sso: 'SSO', magic: 'Email link', toUp: '', toUpAct: 'Create account', toIn: '', toInAct: 'Sign in instead', showPw: 'Show password', hidePw: 'Hide password', forgot: 'Forgot password', guest: 'Skip for now',
+    errName: 'Add your name', errEmail: 'Check the email', errPw: 'Password needs 8+ characters', sent: 'Link sent to {0}',
+    note: 'Design prototype: nothing you type here is sent or stored.' },
+  zh: { language: '语言', signIn: '登录', create: '注册账户', titleIn: '欢迎回来', titleUp: '注册账户', subIn: '登录后即可分享白板、与团队协作。', subUp: '一个账户，通用于所有工作区。',
+    name: '姓名', namePh: '姓名', email: '邮箱', emailPh: '邮箱', password: '密码', pwPh: '密码', show: '显示', hide: '隐藏',
+    goIn: '登录', goUp: '注册账户', or: '或', sso: '单点登录', magic: '邮件链接', toUp: '', toUpAct: '注册账户', toIn: '', toInAct: '改为登录', showPw: '显示密码', hidePw: '隐藏密码', forgot: '忘记密码', guest: '暂时跳过',
+    errName: '请填写姓名', errEmail: '请检查邮箱', errPw: '密码至少 8 位', sent: '链接已发送到 {0}',
+    note: '设计原型：你在这里输入的内容不会被发送或保存。' }
+};
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { lang: props.language === '简体中文' ? 'zh' : 'en', mode: 'in', name: '', email: '', pw: '', show: false, tried: false, sent: false, focus: null, look: { x: 0, y: 0 }, shake: 0 };
+    var self = this;
+    this.botEl = null;
+    this.botRef = function (el) { if (el) self.botEl = el; };
+  }
+  componentDidUpdate(prev) {
+    if ((prev.language || 'English') !== (this.props.language || 'English')) this.setState({ lang: this.props.language === '简体中文' ? 'zh' : 'en' });
+  }
+  renderVals() {
+    var self = this, s = this.state, t = T[s.lang], up = s.mode === 'up';
+    var okEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.email), okPw = s.pw.length >= 8, okName = !up || s.name.trim().length > 0;
+    var ready = okEmail && okPw && okName;
+    var error = !okName ? t.errName : (!okEmail ? t.errEmail : (!okPw ? t.errPw : ''));
+    var tab = function (on) { return 'height: 38px; justify-content: center; font-size: 14px; border-radius: 10px;' + (on ? ' background: #FFFFFF; box-shadow: 0 1px 3px rgba(20,20,30,0.14);' : ''); };
+    var set = function (k) { return function (e) { var p = { sent: false, shake: 0 }; p[k] = e.target.value; self.setState(p); }; };
+    var f = s.focus, lx = s.look.x, ly = s.look.y;
+    if (f === 'email' || f === 'name') { lx = Math.max(-1, Math.min(1, (f === 'email' ? s.email : s.name).length / 12 - 1)); ly = 1; }
+    else if (f === 'pw') { lx = 0; ly = 0.7; }
+    var OL = 'M37 50h.01', OR = 'M63 50h.01', SL = 'M30.5 50Q37 55.5 43.5 50', SR = 'M56.5 50Q63 55.5 69.5 50', HL = 'M30.5 52.5Q37 43.5 43.5 52.5', HR = 'M56.5 52.5Q63 43.5 69.5 52.5';
+    var hide = f === 'pw' && !s.show, peek = f === 'pw' && s.show, happy = ready && !f && !s.shake;
+    var eyeL = (hide || peek) ? SL : (happy ? HL : OL), eyeR = hide ? SR : (happy ? HR : OR);
+    var fo = function (k) { return function () { self.setState({ focus: k }); }; };
+    return {
+      t: t, langShort: s.lang === 'zh' ? '中' : 'EN',
+      flipLang: function () { self.setState({ lang: self.state.lang === 'zh' ? 'en' : 'zh' }); },
+      botRef: this.botRef,
+      bot: {
+        wrap: 'position: absolute; left: 50%; top: -44px; width: 88px; height: 88px; margin-left: -44px; border-radius: 50%; filter: drop-shadow(0 4px 5px rgba(0,0,0,0.22)); animation: ' + (s.shake ? 'si-shake' + (s.shake % 2 ? 'A' : 'B') + ' 0.45s ease' : 'si-float 3.2s ease-in-out infinite') + ';',
+        eyesOuter: 'transition: transform 160ms ease-out; transform: translate(' + (lx * 4.4) + 'px, ' + (ly * 5.2) + 'px);',
+        eyesInner: 'transform-box: fill-box; transform-origin: center;' + (eyeL === OL && eyeR === OR ? ' animation: si-blink 4.6s infinite;' : ''),
+        eyeL: eyeL, eyeR: eyeR, wL: eyeL === OL ? 10.5 : 4.6, wR: eyeR === OR ? 10.5 : 4.6,
+        glL: 'opacity: ' + (eyeL === OL ? 1 : 0) + ';', glR: 'opacity: ' + (eyeR === OR ? 1 : 0) + ';'
+      },
+      onMove: function (e) {
+        if (self.state.focus || !self.botEl) return;
+        var r = self.botEl.getBoundingClientRect(), dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+        var d = Math.hypot(dx, dy) || 1, m = Math.min(1, d / 200), x = Math.round(dx / d * m * 4) / 4, y = Math.round(dy / d * m * 4) / 4;
+        if (x !== self.state.look.x || y !== self.state.look.y) self.setState({ look: { x: x, y: y } });
+      },
+      focusName: fo('name'), focusEmail: fo('email'), focusPw: fo('pw'),
+      blur: function () { self.setState({ focus: null }); },
+      keepFocus: function (e) { e.preventDefault(); },
+      pwHidden: !s.show, pwShown: s.show, showPressed: s.show ? 'true' : 'false',
+      switchText: up ? t.toIn : t.toUp, switchAction: up ? t.toInAct : t.toUpAct,
+      toggleMode: function () { self.setState({ mode: self.state.mode === 'up' ? 'in' : 'up', tried: false, shake: 0 }); },
+      title: up ? t.titleUp : t.titleIn, sub: up ? t.subUp : t.subIn, go: up ? t.goUp : t.goIn,
+      isUp: up, isIn: !up, inSel: up ? 'false' : 'true', upSel: up ? 'true' : 'false', inStyle: tab(!up), upStyle: tab(up),
+      setIn: function () { self.setState({ mode: 'in', tried: false }); }, setUp: function () { self.setState({ mode: 'up', tried: false }); },
+      name: s.name, email: s.email, pw: s.pw, onName: set('name'), onEmail: set('email'), onPw: set('pw'),
+      pwType: s.show ? 'text' : 'password', showLabel: s.show ? t.hidePw : t.showPw,
+      toggleShow: function () { self.setState({ show: !self.state.show }); },
+      ready: ready, notReady: !ready, hasError: s.tried && !ready, error: error,
+      onSubmit: function (e) { e.preventDefault(); self.setState({ tried: true, shake: self.state.shake + 1 }); },
+      sendLink: function () { if (okEmail) self.setState({ sent: true, tried: false }); else self.setState({ tried: true, sent: false, shake: self.state.shake + 1 }); },
+      sent: s.sent && okEmail, sentMsg: t.sent.replace('{0}', s.email),
+      primary: 'height: 48px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; background: #2457C5; color: #FFFFFF; font-size: 15px; font-weight: 500;',
+      secondary: 'height: 46px; width: 100%; box-sizing: border-box; padding: 0 10px; display: flex; align-items: center; justify-content: center; gap: 8px; text-align: center; border-radius: 12px; background: #FFFFFF; border: 1px solid #DCDDE2; color: #111114; font-size: 14px;'
+    };
+  }
+}
+</script>
+</body>
+</html>

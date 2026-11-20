@@ -1,0 +1,25 @@
+{
+  "name": "paradigm",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Paradigm: an AI-first, node-based workflow whiteboard",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @paradigm/server & npm run dev --workspace @paradigm/web",
+    "dev:server": "npm run dev --workspace @paradigm/server",
+    "dev:web": "npm run dev --workspace @paradigm/web",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "start": "npm run build --workspace @paradigm/web && npm run start --workspace @paradigm/server",
+    "agents:install": "npm install --workspace @paradigm/server --save-optional @anthropic-ai/claude-agent-sdk @openai/codex-sdk",
+    "views": "python3 scripts/dc-to-jsx.py design/SignIn.dc.html SignInView apps/web/src/views/SignInView.tsx && python3 scripts/dc-to-jsx.py design/Workspace.dc.html WorkspaceView apps/web/src/views/WorkspaceView.tsx && python3 scripts/dc-to-jsx.py design/Main.dc.html BoardView apps/web/src/views/BoardView.tsx"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
