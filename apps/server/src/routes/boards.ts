@@ -6,7 +6,7 @@ import { now } from '../db';
 import { need, type UserRow } from '../lib/auth';
 import { bad, conflict, forbidden, notFound } from '../lib/errors';
 import { body, EMAIL, str } from '../lib/http';
-import { newId } from '../lib/ids';
+import { newId, newSecret } from '../lib/ids';
 import { needRole, roleIn, type Role } from './workspaces';
 
 const TINTS = ['#BFD7FF', '#FFE38A', '#ADE2A9', '#FFC9D6', '#E3D3FF', '#FFD3A8'];
@@ -142,6 +142,31 @@ export function boardRoutes(app: FastifyInstance, { db }: Deps) {
     if (!b.trashed_at) throw bad('Move the board to the trash first');
     db.prepare('DELETE FROM boards WHERE id = ?').run(b.id);
     return { ok: true };
+  });
+
+  /** The board's view link: made once, then the same one until it is turned off. */
+  app.post('/v1/boards/:id/link', async (req) => {
+    const u = need(req), { b } = loadBoard(db, (req.params as { id: string }).id, u, 'editor');
+    const row = db.prepare('SELECT token FROM board_links WHERE board_id = ?').get(b.id) as { token: string } | undefined;
+    if (row) return { token: row.token };
+    const token = newSecret().slice(0, 24);
+    db.prepare('INSERT INTO board_links (board_id, token, created_by, created_at) VALUES (?, ?, ?, ?)').run(b.id, token, u.id, now());
+    return { token };
+  });
+
+  app.delete('/v1/boards/:id/link', async (req) => {
+    const u = need(req), { b } = loadBoard(db, (req.params as { id: string }).id, u, 'editor');
+    db.prepare('DELETE FROM board_links WHERE board_id = ?').run(b.id);
+    return { ok: true };
+  });
+
+  /** Opens a board by its view link. No account needed; the board cannot be changed through it. */
+  app.get('/v1/public/:token', async (req) => {
+    const t = String((req.params as { token: string }).token || '');
+    const b = db.prepare('SELECT b.* FROM board_links l JOIN boards b ON b.id = l.board_id WHERE l.token = ? AND b.trashed_at IS NULL').get(t) as BoardRow | undefined;
+    if (!b) throw notFound('This link was turned off, or the board was deleted');
+    const st = JSON.parse(b.settings || '{}');
+    return { board: { id: b.id, title: b.title, nodes: b.nodes, version: b.version, updatedAt: b.updated_at, createdAt: b.created_at, role: 'viewer', file: JSON.parse(b.file), settings: { bg: st.bg } } };
   });
 
   app.get('/v1/boards/:id/shares', async (req) => {

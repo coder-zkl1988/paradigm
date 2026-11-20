@@ -4,6 +4,8 @@ import type { Deps } from '../app';
 import { ADAPTERS } from '../agents';
 import { imageProvider } from './media';
 import { need } from '../lib/auth';
+import { ssoReady } from '../lib/oidc';
+import { videoReady } from '../lib/video';
 
 export function metaRoutes(app: FastifyInstance, { cfg }: Deps) {
   app.get('/v1/health', async () => ({ ok: true }));
@@ -24,8 +26,9 @@ export function metaRoutes(app: FastifyInstance, { cfg }: Deps) {
       acpAgents: Object.keys(cfg.acpAgents),
       sandbox: { mode: cfg.sandbox, real: cfg.sandbox !== 'off', ...(cfg.sandbox === 'off' ? { reason: 'Set PARADIGM_SANDBOX to local or docker to run commands' } : {}) },
       images: imageProvider() ? { real: true, provider: imageProvider() } : { real: false, reason: 'Set OPENROUTER_API_KEY or OPENAI_API_KEY to make images' },
-      videos: { real: false, reason: 'No video provider is connected yet' },
-      mail: { real: false, reason: cfg.devMail ? 'Email links are printed in the server log' : 'No mail service is connected' },
+      videos: videoReady(cfg) ? { real: true, provider: cfg.videoModel } : { real: false, reason: 'Set VIDEO_API_URL and VIDEO_API_KEY to make videos' },
+      mail: cfg.smtpUrl ? { real: true, provider: 'smtp' } : { real: false, reason: cfg.devMail ? 'Email links are printed in the server log. Set SMTP_URL to send them.' : 'Set SMTP_URL to send email' },
+      sso: ssoReady(cfg) ? { real: true, provider: cfg.oidcIssuer } : { real: false, reason: 'Set OIDC_ISSUER, OIDC_CLIENT_ID and OIDC_CLIENT_SECRET to turn on single sign-on' },
     };
   });
 

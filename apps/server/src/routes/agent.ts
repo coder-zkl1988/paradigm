@@ -71,6 +71,15 @@ export function agentRoutes(app: FastifyInstance, { db, cfg, runs, origin }: Dep
     return { ok: true };
   });
 
+  for (const action of ['pause', 'resume'] as const) {
+    app.post(`/v1/agent/runs/:id/${action}`, async (req) => {
+      const u = need(req), run = runs.get((req.params as { id: string }).id);
+      if (!run || run.userId !== u.id) throw notFound('This run is over or was never started here');
+      run[action]();
+      return { ok: true, paused: run.paused };
+    });
+  }
+
   app.post('/v1/agent/runs/:id/stop', async (req) => {
     const u = need(req), run = runs.get((req.params as { id: string }).id);
     if (!run || run.userId !== u.id) throw notFound('This run is over or was never started here');

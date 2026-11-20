@@ -52,7 +52,7 @@ export function simAnswer(it: NodeItem, G: FlowGraph, byId: Record<string, Board
     return `# ${head}\n\n${fmt('Simulated answer from {0}.', who)}\n\n| ${[tr('Task'), tr('Owner'), tr('Hours')].join(' | ')} |\n| --- | --- | --- |\n`
       + `| ${[tr('Read what flows in'), who, '1'].join(' | ')} |\n| ${[clipText(task, 60).replace(/\|/g, '/'), who, '4'].join(' | ')} |\n| ${[tr('Check the result and hand it on'), tr('You'), '0.5'].join(' | ')} |\n`;
   }
-  return `# ${head}\n\n${fmt('Simulated answer from {0}. Connect the backend to get a real one.', who)}\n\n## ${tr('Plan')}\n\n`
+  return `# ${head}\n\n${fmt('Simulated answer from {0}. Set a model key on the server to get a real one.', who)}\n\n## ${tr('Plan')}\n\n`
     + `1. ${fmt('Read what flows in: {0}', inputs.length ? inputs.map((i) => '#' + i.from).join(', ') : tr('nothing yet'))}\n2. ${task}\n3. ${tr('Check the result and hand it on')}\n\n`
     + `## ${tr('Notes')}\n\n- ${fmt('Asked: {0}', task)}\n- ${fmt('Brief: {0}', topic)}\n`;
 }

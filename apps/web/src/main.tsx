@@ -16,11 +16,23 @@ function Need({ children }: { children: JSX.Element }) {
 }
 
 function BoardPage() {
-  const { id = 'new' } = useParams(), nav = useNavigate();
+  const { id = 'new' } = useParams(), nav = useNavigate(), [q] = useSearchParams();
   const { me, lang, flipLang, setLang, signOut } = useSession();
   return (
-    <Board key={id === 'new' ? 'new' : id} boardId={id} me={me!} lang={lang} flipLang={flipLang} setLang={setLang}
-      goHome={() => nav('/')} signOut={() => void signOut().then(() => nav('/signin'))} replaceUrl={(bid) => nav(`/b/${bid}`, { replace: true })} />
+    <Board key={id} boardId={id} me={me!} lang={lang} flipLang={flipLang} setLang={setLang} embed={q.get('embed') === '1'} toolbar={q.get('toolbar') !== 'off'}
+      goHome={(ws) => nav(ws ? `/?ws=${ws}` : '/')} newBoard={() => nav('/board/new')} signOut={() => void signOut().then(() => nav('/signin'))}
+      replaceUrl={(bid) => nav(`/b/${bid}`, { replace: true })} />
+  );
+}
+
+/** A view link or an embed: anyone with the link sees the board and cannot change it. */
+function ViewPage({ embed }: { embed?: boolean }) {
+  const { token = '' } = useParams(), nav = useNavigate(), [q] = useSearchParams();
+  const { me, ready, lang, flipLang, setLang, signOut } = useSession();
+  if (!ready) return <div style={{ minHeight: '100vh', background: '#FFFFFF' }} />;
+  return (
+    <Board key={token} boardId="" viewToken={token} embed={embed} toolbar={q.get('toolbar') !== 'off'} me={me} lang={lang} flipLang={flipLang} setLang={setLang}
+      goHome={() => nav(me ? '/' : '/signin')} newBoard={() => nav(me ? '/board/new' : '/signin')} signOut={() => void signOut().then(() => nav('/signin'))} replaceUrl={() => undefined} />
   );
 }
 
@@ -44,6 +56,8 @@ function App() {
       <Route path="/b/:id" element={<Need><BoardPage /></Need>} />
       <Route path="/board/new" element={<Need><BoardPage /></Need>} />
       <Route path="/invite" element={<Need><AcceptInvite /></Need>} />
+      <Route path="/v/:token" element={<ViewPage />} />
+      <Route path="/embed/:token" element={<ViewPage embed />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

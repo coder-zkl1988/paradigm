@@ -9,6 +9,9 @@ import { makeView } from './documents';
 import { packageResult } from './market';
 import { nodeRequest, packageSource } from './run';
 
+/** How often a video step asks whether its job is done, and how long it waits in all. */
+export const VIDEO_POLL_MS = 4000, VIDEO_WAIT_MS = 20 * 60_000;
+
 export interface ScriptResult { value?: unknown; logs?: string[]; blocked?: boolean }
 
 export interface Services {
@@ -60,7 +63,15 @@ export async function executeNode(it: NodeItem, inputs: NodeInput[], perms: Part
     }
     if (t === 'http') return { type: 'data', value: r.body, text: showVal(r.body), sim: !!r.simulated, meta: { status: r.status, statusText: r.statusText } };
     const b = req.body as { prompt: string; ratio: string; seconds?: number };
-    return { type: def.out, value: r.url || null, text: b.prompt, sim: !!r.simulated, meta: { ratio: b.ratio, seconds: b.seconds, jobId: r.jobId } };
+    let job = r;
+    // A real video takes minutes: ask until the job is done.
+    for (let waited = 0; t === 'videogen' && job.status === 'running'; waited += VIDEO_POLL_MS) {
+      if (waited > VIDEO_WAIT_MS) throw new Error('The video is taking too long. Run the step again later.');
+      await new Promise((ok) => setTimeout(ok, VIDEO_POLL_MS));
+      job = await svc.backend('videoJob', { jobId: r.jobId });
+    }
+    if (job.status === 'failed') throw new Error(job.error || 'The video could not be made');
+    return { type: def.out, value: job.url || null, text: b.prompt, sim: !!job.simulated, meta: { ratio: b.ratio, seconds: b.seconds, jobId: r.jobId } };
   };
 
   if (t === 'code' && req.where === 'local') {
