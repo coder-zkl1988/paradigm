@@ -26,12 +26,15 @@ export function SignIn() {
   };
   const fail = (e: unknown) => set({ busy: false, tried: true, server: e instanceof ApiError ? e.message : 'Something went wrong. Try again.', shake: s.shake + 1 });
 
-  // Arriving from an email link.
+  // Arriving from an email link, or back from single sign-on.
   useEffect(() => {
-    const link = params.get('link');
-    if (!link) return;
-    setParams({}, { replace: true });
-    auth.verify(link).then(done, fail);
+    const link = params.get('link'), sso = params.get('sso'), ssoError = params.get('sso_error');
+    if (!link && !sso && !ssoError) return;
+    const next = params.get('next');
+    setParams(next ? { next } : {}, { replace: true });
+    if (link) auth.verify(link).then(done, fail);
+    else if (sso) auth.ssoFinish(sso).then(done, fail);
+    else set({ tried: true, server: ssoError || '', shake: 1 });
   }, []);
 
   const up = s.mode === 'up';
@@ -106,7 +109,7 @@ export function SignIn() {
     follow: (e: { preventDefault(): void; currentTarget: HTMLAnchorElement }) => {
       e.preventDefault();
       const href = e.currentTarget.getAttribute('href');
-      if (href === '/') auth.sso().catch(fail); // the SSO button
+      if (href === '/') auth.sso(params.get('next') || undefined).then((r) => { window.location.assign(r.url); }, fail); // the SSO button
       else auth.guest().then((r) => { signedIn(r.token, r.user); nav('/board/new', { replace: true }); }, fail); // Skip for now
     },
   };

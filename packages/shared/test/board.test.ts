@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { canTake, chatModeOf, chatSteps, flowGraph, fromFile, index, planChat, starterItems, TEMPLATES, templateItems, toFile, executeNode, type NodeItem, type Services } from '../src';
 
 describe('templates', () => {
@@ -53,6 +53,29 @@ describe('running a node', () => {
     expect((await executeNode(code, [{ from: 'd', type: 'data', value: 21 }], {}, svc)).value).toBe(42);
     const sheet: NodeItem = { ...code, id: 's', ntype: 'sheet', text: '' };
     expect((await executeNode(sheet, [{ from: 'd', type: 'text', value: 'a,b\n1,2' }], {}, svc)).view!.kind).toBe('sheet');
+  });
+  it('waits for a video job to finish', async () => {
+    vi.useFakeTimers();
+    const asked: string[] = [];
+    let polls = 0, failNext = false;
+    const svcVideo: Services = { ...svc, backend: async (kind, body: any) => {
+      asked.push(kind);
+      if (kind === 'videogen') return { jobId: 'job_1', status: 'running', url: null };
+      polls++;
+      expect(body).toEqual({ jobId: 'job_1' });
+      return polls < 2 ? { jobId: 'job_1', status: 'running' } : failNext ? { status: 'failed', error: 'Too dark' } : { jobId: 'job_1', status: 'done', url: '/v1/files/abc/video.mp4' };
+    } };
+    const v: NodeItem = { id: 'v', kind: 'node', ntype: 'videogen', x: 0, y: 0, w: 1, h: 1, text: 'A kite over a beach', status: 'idle' };
+    const p = executeNode(v, [], {}, svcVideo);
+    await vi.advanceTimersByTimeAsync(10_000);
+    const r = await p;
+    expect(asked).toEqual(['videogen', 'videoJob', 'videoJob']);
+    expect(r).toMatchObject({ type: 'video', value: '/v1/files/abc/video.mp4', sim: false });
+    failNext = true; polls = 0;
+    const f = executeNode(v, [], {}, svcVideo).catch((e) => e);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(((await f) as Error).message).toBe('Too dark');
+    vi.useRealTimers();
   });
   it('runs a market node from its manifest', async () => {
     const n: NodeItem = { id: 'k', kind: 'node', ntype: 'pkg:word-count', x: 0, y: 0, w: 1, h: 1, text: '', status: 'idle' };

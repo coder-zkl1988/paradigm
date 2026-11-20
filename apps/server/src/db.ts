@@ -29,6 +29,11 @@ const MIGRATIONS: string[] = [
    CREATE TABLE api_tokens (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, label TEXT NOT NULL, created_at TEXT NOT NULL);`,
   // View links: anyone with the link can see the board, not change it. The token is kept so the owner can copy it again.
   `CREATE TABLE board_links (board_id TEXT PRIMARY KEY REFERENCES boards(id) ON DELETE CASCADE, token TEXT NOT NULL UNIQUE, created_by TEXT NOT NULL, created_at TEXT NOT NULL);`,
+  // Single sign-on: what to check when the browser comes back from the provider.
+  `CREATE TABLE sso_states (state_hash TEXT PRIMARY KEY, nonce TEXT NOT NULL, verifier TEXT NOT NULL, next TEXT, expires_at TEXT NOT NULL);`,
+  // Real video jobs take minutes: the provider's job id, and why one failed.
+  `ALTER TABLE video_jobs ADD COLUMN provider_id TEXT;
+   ALTER TABLE video_jobs ADD COLUMN error TEXT;`,
 ];
 
 export function openDb(file: string): DB {

@@ -118,7 +118,7 @@ describe('node market', () => {
 
 describe('meta', () => {
   it('serves the contract and says what is real', async () => {
-    expect((await t.call('GET', '/v1/contract')).json.endpoints.length).toBe(11);
+    expect((await t.call('GET', '/v1/contract')).json.endpoints.length).toBe(12);
     const s = (await t.call('GET', '/v1/status', undefined, token)).json;
     expect(s.sandbox).toMatchObject({ mode: 'off', real: false });
     expect(Object.keys(s.agents)).toEqual(['pi', 'claude', 'codex', 'acp']);

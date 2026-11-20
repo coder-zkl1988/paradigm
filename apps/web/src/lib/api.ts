@@ -69,7 +69,8 @@ export const auth = {
   link: (email: string, purpose: 'signin' | 'reset' = 'signin') => api<{ sent: boolean; devLink?: string }>('POST', '/v1/auth/link', { email, purpose }),
   verify: (token: string) => api<Signed>('POST', '/v1/auth/link/verify', { token }),
   reset: (token: string, password: string) => api<Signed>('POST', '/v1/auth/reset', { token, password }),
-  sso: () => api('GET', '/v1/auth/sso'),
+  sso: (next?: string) => api<{ url: string }>('GET', '/v1/auth/sso' + (next ? `?next=${encodeURIComponent(next)}` : '')),
+  ssoFinish: (code: string) => api<Signed>('POST', '/v1/auth/sso/finish', { code }),
   signout: () => api('POST', '/v1/auth/signout').catch(() => null),
   me: () => api<{ user: Me }>('GET', '/v1/me'),
   update: (p: Partial<Me> & { password?: string }) => api<{ user: Me }>('PATCH', '/v1/me', p),
@@ -108,7 +109,8 @@ export function backend(kind: string, body: unknown): Promise<any> {
   if (!e) return Promise.reject(new Error(`Unknown backend call ${kind}`));
   let path = e.path;
   if (kind === 'marketRun') path = path.replace('{id}', encodeURIComponent((body as { node: string }).node));
-  return api(e.method, path, body);
+  if (kind === 'videoJob') path = path.replace('{jobId}', encodeURIComponent((body as { jobId: string }).jobId));
+  return api(e.method, path, e.method === 'GET' ? undefined : body);
 }
 
 export const agent = {

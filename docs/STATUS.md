@@ -71,9 +71,10 @@ whiteboard, with a server behind every part the draft only simulated.
   Elsewhere the board says so and you type instead.
 - **One person at a time**: boards save with conflict checks, but two people
   editing the same board do not see each other live.
-- **Server gaps**: single sign-on answers "not set up"; email is printed to
-  the server log instead of sent; video generation has no provider yet, so
-  video nodes return stand-ins; Codex permissions apply per run, not per call.
+- **Services that need settings**: email, single sign-on, images, videos and
+  each agent run for real once their keys are set (see the README); until
+  then they say they are stand-ins. Videos need a service with the OpenAI
+  Videos API format, since OpenAI closed its own in September 2026.
 - **Names**: the file format (`flowboard` v1) and the node manifest spec
   (`flowboard-node/1`) keep the draft's names, so files made in the draft open
   here.

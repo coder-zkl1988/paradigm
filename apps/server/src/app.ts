@@ -7,7 +7,7 @@ import type { Config } from './config';
 import { openDb, type DB } from './db';
 import { bearer, userFromToken } from './lib/auth';
 import { HttpError } from './lib/errors';
-import { devMailer, type Mailer } from './lib/mail';
+import { devMailer, smtpMailer, type Mailer } from './lib/mail';
 import { RunStore } from './agents/run';
 import { authRoutes } from './routes/auth';
 import { workspaceRoutes } from './routes/workspaces';
@@ -38,7 +38,7 @@ export async function buildApp(cfg: Config, o: { db?: DB; mailer?: Mailer; logge
   const db = o.db || openDb(join(cfg.dataDir, 'paradigm.sqlite'));
   const runs = new RunStore();
   const origin = (req: FastifyRequest) => { const h = req.headers.origin; return h && cfg.webOrigins.includes(h) ? h : undefined; };
-  const deps: Deps = { db, cfg, mailer: o.mailer || devMailer(app.log, cfg.devMail), runs, origin };
+  const deps: Deps = { db, cfg, mailer: o.mailer || (cfg.smtpUrl ? smtpMailer(app.log, cfg.smtpUrl, cfg.mailFrom) : devMailer(app.log, cfg.devMail)), runs, origin };
 
   await app.register(cors, { origin: cfg.webOrigins, credentials: false, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] });
 
