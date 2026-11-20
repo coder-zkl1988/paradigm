@@ -1,0 +1,20 @@
+const fs=require('fs');
+const X=JSON.parse(fs.readFileSync(process.argv[2] || '/tmp/draft-data.json','utf8'));
+const R=require('path').resolve(__dirname,'..')+'/';
+const DEF={vb:'0 0 48 48',f:'none',s:'none',w:0,op:1,par:'xMidYMid meet',ve:'none',dash:'none'};
+const comp=(L)=>L.map(l=>{const o={d:l.d}; for(const k of ['vb','f','s','w','op','par','ve','dash']) if(l[k]!==undefined&&l[k]!==DEF[k]) o[k]=l[k]; return o;});
+const mapComp=(m)=>Object.fromEntries(Object.entries(m).map(([k,v])=>[k,comp(v)]));
+const hdr='// Generated from the design draft by scripts/extract-design-assets. Edit the draft data, not this file by hand.\n';
+let s=hdr+"import type { Layer } from '../stickers';\n\n";
+s+='export const NODE_STICKERS: Record<string, Layer[]> = '+JSON.stringify(mapComp(X.NODE_STK))+';\n\n';
+s+='export const DOCK_STICKERS: Record<string, Layer[]> = '+JSON.stringify(mapComp(X.DOCK))+';\n\n';
+s+='export const TOOL_STICKERS: Record<string, Layer[]> = '+JSON.stringify(mapComp(X.HZ_STK))+';\n\n';
+s+='export const STICKER_LIBRARY: { id: string; name: string; flip: boolean; layers: Layer[] }[] = '+JSON.stringify(X.STICKERS.map(t=>({id:t.id,name:t.name,flip:t.flip,layers:comp(t.layers)})))+';\n';
+fs.writeFileSync(R+'packages/shared/src/data/stickers.ts', s);
+fs.writeFileSync(R+'packages/shared/src/data/templates.json', JSON.stringify(X.TEMPLATES,null,1)+'\n');
+fs.writeFileSync(R+'packages/shared/src/data/market.json', JSON.stringify({samples:X.MARKET, template:X.PKG_TEMPLATE},null,1)+'\n');
+// i18n: one table, English text -> Chinese text
+const zh=Object.assign({}, X.ZH);
+for(const k of Object.keys(X.I_EN)) if(X.I_ZH[k]&&X.I_EN[k]) zh[X.I_EN[k]]=X.I_ZH[k];
+fs.writeFileSync(R+'apps/web/src/i18n/zh.json', JSON.stringify(zh,null,1)+'\n');
+console.log('stickers', s.length, '| zh', Object.keys(zh).length, '| templates', Object.keys(X.TEMPLATES).length);
