@@ -35,9 +35,10 @@ npm start          # builds apps/web, then serves it and the API on :8787
 | --- | --- |
 | `packages/shared` | Everything both sides use, in TypeScript: board geometry, node types and wiring rules, the board file format, document parsing and previews, templates, the market manifest check, harness event mapping, the run engine (`executeNode`), and the API contract. |
 | `apps/server` | Fastify + SQLite. Accounts and sessions, workspaces, members and invites, boards with autosave and conflict checks, node pins, agent runs (streamed), permissions, the sandbox, the HTTP proxy, images and videos, Office export, the node market and its MCP server. |
-| `apps/web` | React + Vite. Sign in, the workspace home and the whiteboard. |
+| `apps/web` | React + Vite. Sign in, the workspace home, the whiteboard, and read-only view links (`/v/<token>`, `/embed/<token>`). |
 | `design/` | The design draft this was built from. |
-| `scripts/dc-to-jsx.py` | Carries the draft's markup into React components (`apps/web/src/views`). The logic that fills those views is hand-written. Run `npm run views` after changing a draft page. |
+| `scripts/dc-to-jsx.py` | Carries the draft's markup into React components (`apps/web/src/views`). Run `npm run views` after changing a draft page. |
+| `scripts/port-board.py` | Builds the whiteboard's logic (`apps/web/src/board/Board.tsx`) from the draft's own board class, swapping the methods the draft only simulated for the ones in `scripts/board-overrides`, which talk to the server. `Board.tsx` is generated: change an override and run `npm run board`. |
 
 ## Agents
 

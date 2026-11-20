@@ -17,7 +17,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "start": "npm run build --workspace @paradigm/web && npm run start --workspace @paradigm/server",
     "agents:install": "npm install --workspace @paradigm/server --save-optional @anthropic-ai/claude-agent-sdk @openai/codex-sdk",
-    "views": "python3 scripts/dc-to-jsx.py design/SignIn.dc.html SignInView apps/web/src/views/SignInView.tsx && python3 scripts/dc-to-jsx.py design/Workspace.dc.html WorkspaceView apps/web/src/views/WorkspaceView.tsx && python3 scripts/dc-to-jsx.py design/Main.dc.html BoardView apps/web/src/views/BoardView.tsx"
+    "views": "python3 scripts/dc-to-jsx.py design/SignIn.dc.html SignInView apps/web/src/views/SignInView.tsx && python3 scripts/dc-to-jsx.py design/Workspace.dc.html WorkspaceView apps/web/src/views/WorkspaceView.tsx && python3 scripts/dc-to-jsx.py design/Main.dc.html BoardView apps/web/src/views/BoardView.tsx",
+    "board": "python3 scripts/port-board.py design/Main.dc.html scripts/board-overrides apps/web/src/board/Board.tsx"
   },
   "engines": {
     "node": ">=22"

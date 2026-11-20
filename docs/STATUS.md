@@ -1,12 +1,24 @@
 # Status against the design draft
 
-This is the first pass of the restoration. It covers Sign in, the workspace
-home, and the core of the whiteboard, with a complete server behind them.
+All three pages of the draft are restored: Sign in, the workspace home and the
+whiteboard, with a server behind every part the draft only simulated.
+
+## How the board was carried over
+
+- **Markup**: `scripts/dc-to-jsx.py` turns each draft page into a React view
+  (`apps/web/src/views`), so spacing, colours, stickers, type and states are
+  the draft's own. Run `npm run views` after changing a draft page.
+- **Logic**: the whiteboard is the draft's own board class, ported method by
+  method by `scripts/port-board.py` into `apps/web/src/board/Board.tsx`. The
+  methods that were simulated in the draft (saving, loading, agent runs, the
+  toolbar chat, the market, files, sharing, voice) are replaced by the files
+  in `scripts/board-overrides`, which talk to the server. `Board.tsx` is
+  generated: change an override and run `npm run board`.
+- **Shared code**: node types, wiring rules, the file format, documents,
+  templates and the manifest check come from `packages/shared` through
+  `apps/web/src/board/draft.ts`, which maps the draft's names onto them.
 
 ## Matches the draft
-
-The markup of all three pages is carried over from `design/*.dc.html` as is,
-so spacing, colours, stickers, type and states are the draft's own.
 
 - **Sign in**: sign in, create account, password rules, show/hide password,
   the robot that follows the pointer and hides its eyes, shake on errors,
@@ -14,41 +26,51 @@ so spacing, colours, stickers, type and states are the draft's own.
 - **Workspace**: team and personal workspaces, Boards, Shared with me,
   Templates (all 16, with filters), Trash with restore, search, New board,
   the three guided flows, members, invites with roles, cancel invite, sign out,
-  language switch. Board cards show real titles, times and node counts.
-- **Whiteboard**: grid and dots backgrounds, pan, zoom (wheel, buttons, fit,
-  100%), snap to grid, workflow node cards with stickers, fields, previews,
-  status pills and the step / in / out footer, ports and arrows with their
-  type labels and running animation, connecting nodes with the wiring rules,
-  moving, multi-select by box, resize, duplicate, delete, undo and redo, the
-  bottom toolbar with pinned nodes (up to six), the Nodes panel with pin and
-  unpin, shapes and stickers panels, text, frames, stickies, pen and arrows,
-  the welcome screen with the three guided flows, the empty-board hint,
-  toasts, the account bar (All boards, workspace, save state, share link,
-  language, account menu).
-- **Running**: Run flow and run one node, queued / running / waiting / done /
-  failed states, the review gate (Approve, Send back), agent permission
-  questions on the node (Allow once, Always, Deny), Code nodes running
+  language switch.
+- **Editing**: every tool (select, hand, shapes, arrows and lines with bend
+  handles, pen, text, sticky notes, frames, stickers, nodes), the selection
+  toolbar for nodes, shapes, text, stickies, arrows and multi-selections
+  (style, colour, bold, italic, link, list, align, lock, comment, options,
+  more), the right-click menu, cut, copy, paste and duplicate, group and
+  ungroup, tidy up, layer order, nudging, keyboard connect (`C`), undo and
+  redo, comments on any item, the library of saved selections, the Nodes
+  panel with pins, and every keyboard shortcut in the help dialog.
+- **Agent steps**: the tool-node ring that opens around an agent step, with
+  sub-agents, tool counts, the permission question on the tool node (Allow
+  once, Always, Deny), pause and resume, and replay and scrubbing back
+  through the calls. The ring is driven by the server's run events, for
+  every harness.
+- **Options**: run a node as options A, B and C, compare them side by side,
+  and keep one.
+- **Running**: Run flow and run one node, the review gate, Code nodes running
   JavaScript in a worker, and every server-side node: terminal, Python, API
-  request, image, video, market nodes.
-- **Previews and full view**: Doc, Sheet (sortable, sums), Slides (pager,
-  thumbnails), HTML preview (phone and desktop, source), Markdown; downloads
-  (.md, .html, .csv) and real .docx, .xlsx and .pptx export.
-- **Toolbar chat**: Draws as Auto / Diagram / Workflow, the agent's step list,
-  the proposal with Accept and Reject, and the selection box that asks what
-  to build inside it.
+  request, image, video, market nodes. Previews and full view for Doc,
+  Sheet, Slides, HTML and Markdown, with downloads and real .docx, .xlsx and
+  .pptx export.
+- **Panels and dialogs**: the node market (browse, installed, make your own,
+  publish, the MCP config for coding agents), the inspector, the AI view
+  (outline, JSON, copy, download, load a file, suggest next step), backend
+  interfaces with live status, the help dialog, and the share dialog (view
+  link, embed code, the "In your app" snippet).
+- **Robot and voice**: the robot's moods and what it says while it thinks,
+  works, waits and finishes; click the robot to talk, or dictate into the
+  chat bar. Both use the browser's speech recognition.
+- **Toolbar chat**: Draws as Auto / Diagram / Workflow, the agent's step
+  list, the proposal with Accept and Reject, and the selection box.
+- **Language**: English and Chinese for every page, including text only the
+  board shows.
 
-## Not yet, or different
+## Different from the draft, or not done
 
-- **Next pass**: the robot assistant and voice input, the tool-node ring that
-  opens around an agent step (tool calls are shown on the node for now),
-  arrow bend handles, the formatting toolbar for text, shapes and stickies,
-  the right-click menu, comments, group and tidy up, options A/B/C
-  comparison and "keep one" (options run side by side today, but there is no
-  compare view yet).
-- **After that**: the node market screens (the server side, publishing and
-  the MCP server are done), the AI view panel, the inspector, the backend
-  interfaces dialog, the help dialog, the share dialog (Share copies the
-  board link for now), and Chinese for text that only the board shows.
+- **View links**: Share makes a link (`/v/<token>`) that anyone can open
+  read-only, without an account. The embed code uses `/embed/<token>`, or the
+  board's own address when editing is allowed (people then need access).
+- **"In your app"**: the draft's snippet names a package that does not exist
+  yet (`[PACKAGE NAME]`); it is shown as the draft has it.
+- **Voice**: needs a browser with speech recognition (Chrome, Edge, Safari).
+  Elsewhere the board says so and you type instead.
+- **One person at a time**: boards save with conflict checks, but two people
+  editing the same board do not see each other live.
 - **Server gaps**: single sign-on answers "not set up"; email is printed to
   the server log instead of sent; video generation has no provider yet, so
   video nodes return stand-ins; Codex permissions apply per run, not per call.

@@ -2,7 +2,7 @@
 // invites. Layout and words come from the draft; the data is the server's.
 
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { NODE_STICKERS, TEMPLATES, TEMPLATE_INFO, layerDefaults } from '@paradigm/shared';
 import type { Workspace as WS } from '@paradigm/shared';
 import { WorkspaceView } from '../views/WorkspaceView';
@@ -18,7 +18,7 @@ const STK = (k: string) => (NODE_STICKERS[k] || NODE_STICKERS.llm).map((l) => ({
 const GALLERY = Object.keys(TEMPLATES).sort((a, b) => Number(a.slice(1)) - Number(b.slice(1)));
 
 export function Workspace() {
-  const nav = useNavigate();
+  const nav = useNavigate(), [params] = useSearchParams();
   const { me, lang, flipLang, signOut } = useSession();
   const t: Record<string, string> = { ...((D as any).T[lang] as Record<string, string>), sample: '' };
   const [s, setS] = useState({ view: 'boards' as View, ws: 0, wsOpen: false, query: '', inviteOpen: false, inviteEmail: '', inviteRole: 'editor', inviteTried: false, tcat: 'all', inviteSent: null as null | { email: string; role: string }[], inviteError: '' });
@@ -29,7 +29,13 @@ export function Workspace() {
   const [flash, setFlash] = useState('');
   const ws = list[s.ws];
 
-  useEffect(() => { W.list().then((r) => setList(r.workspaces)).catch((e) => setFlash(e.message)); }, []);
+  useEffect(() => {
+    W.list().then((r) => {
+      setList(r.workspaces);
+      const want = params.get('ws'), at = want ? r.workspaces.findIndex((w) => w.id === want) : -1;
+      if (at >= 0) set({ ws: at });
+    }).catch((e) => setFlash(e.message));
+  }, []);
   const loadBoards = useCallback(() => {
     if (!ws) return;
     const q = s.query.trim();

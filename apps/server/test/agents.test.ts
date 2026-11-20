@@ -46,6 +46,22 @@ describe('stand-in runs', () => {
     expect(ev.some((e) => e.type === 'tool_call_update' && e.status === 'blocked')).toBe(true);
     expect(ev[ev.length - 1].status).toBe('success');
   });
+  it('holds tool calls while paused and carries on when resumed', async () => {
+    let runId = '', paused = false, calls = 0, resumedAt = 0, heldUntil = 0;
+    const ev = await run({ harness: 'claude', instruction: 'Fix the bug', context: { text: '', feeds: ['terminal'] }, permissions: { connector: 'allow', tool: 'allow' } }, async (e) => {
+      if (e.type === 'run') runId = e.runId;
+      if (e.type === 'tool_call') {
+        calls++;
+        if (calls === 1 && !paused) {
+          paused = true;
+          await t.call('POST', `/v1/agent/runs/${runId}/pause`, {}, token);
+          setTimeout(async () => { resumedAt = Date.now(); await t.call('POST', `/v1/agent/runs/${runId}/resume`, {}, token); }, 300);
+        } else if (calls === 2) heldUntil = Date.now();
+      }
+    });
+    expect(heldUntil).toBeGreaterThanOrEqual(resumedAt);
+    expect(ev[ev.length - 1].status).toBe('success');
+  });
   it('turns the toolbar chat into a proposal of shapes and arrows', async () => {
     const ev = await run({ harness: 'pi', surface: 'chat', instruction: 'Sign-up flow: enter email, verify the code, pick a plan', chat: { mode: 'diagram', board: [], selected: [], area: null, tools: [] } });
     const end = ev[ev.length - 1];

@@ -113,8 +113,10 @@ export function backend(kind: string, body: unknown): Promise<any> {
 
 export const agent = {
   run: (req: AgentRunRequest, onEvent: (e: AgentEvent) => void, signal?: AbortSignal) => stream('/v1/agent/runs', req, onEvent, signal),
-  answer: (runId: string, requestId: string, decision: 'allow_once' | 'allow_always' | 'deny') => api('POST', `/v1/agent/runs/${runId}/permissions`, { requestId, decision }),
+  answer: (runId: string, requestId: string, decision: 'allow_once' | 'allow_always' | 'deny') => api('POST', `/v1/agent/runs/${runId}/permissions`, { requestId, decision }).catch(() => null),
   stop: (runId: string) => api('POST', `/v1/agent/runs/${runId}/stop`, {}).catch(() => null),
+  pause: (runId: string) => api('POST', `/v1/agent/runs/${runId}/pause`, {}).catch(() => null),
+  resume: (runId: string) => api('POST', `/v1/agent/runs/${runId}/resume`, {}).catch(() => null),
 };
 
 export const files = {
