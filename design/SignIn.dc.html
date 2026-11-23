@@ -29,6 +29,7 @@ a{color:#2457C5}a:hover{color:#1A3F8F}
 @keyframes si-shakeA{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
 @keyframes si-shakeB{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
 @media (prefers-reduced-motion: reduce){.si-bot,.si-bot *{animation:none !important;transition:none !important}}
+.si-alt>:last-child:nth-child(odd){grid-column:1/-1}
 </style>
 </helmet>
 <main onPointerMove="{{onMove}}" style="position: relative; min-height: 100vh; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 72px 16px 40px; background-color: #FFFFFF; background-image: linear-gradient(rgba(0,0,0,0.016) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.016) 1px, transparent 1px); background-size: 40px 40px;">
@@ -91,8 +92,16 @@ a{color:#2457C5}a:hover{color:#1A3F8F}
       </sc-if>
     </form>
     <div aria-hidden="true" style="display: flex; align-items: center; gap: 12px; color: #6B6C73; font-size: 13px"><span style="flex: 1 1 auto; height: 1px; background: #E3E4E8"></span><span>{{t.or}}</span><span style="flex: 1 1 auto; height: 1px; background: #E3E4E8"></span></div>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px">
-      <a class="pg-link" href="Workspace.dc.html" style="{{secondary}}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="15.5" r="3.5"></circle><path d="M11 13l8.5-8.5M16 8.500l2.500 2.500"></path></svg><span>{{t.sso}}</span></a>
+    <div class="si-alt" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px">
+      <sc-if value="{{hasGoogle}}" hint-placeholder-val="{{ true }}">
+        <a class="pg-link" href="Workspace.dc.html" data-provider="google" aria-label="{{t.withGoogle}}" style="{{secondary}}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><path d="M3.5 12h17M12 3.5c2.300 2.400 3.400 5.200 3.400 8.500s-1.100 6.100-3.400 8.500c-2.300-2.400-3.400-5.200-3.400-8.500s1.100-6.100 3.400-8.500z"></path></svg><span>{{t.google}}</span></a>
+      </sc-if>
+      <sc-if value="{{hasGitHub}}" hint-placeholder-val="{{ true }}">
+        <a class="pg-link" href="Workspace.dc.html" data-provider="github" aria-label="{{t.withGitHub}}" style="{{secondary}}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.500 4v10.500"></path><circle cx="17.500" cy="6.500" r="2.500"></circle><circle cx="6.500" cy="17.500" r="2.500"></circle><path d="M17.500 9a8.500 8.500 0 0 1-8.500 8.500"></path></svg><span>{{t.github}}</span></a>
+      </sc-if>
+      <sc-if value="{{hasSso}}" hint-placeholder-val="{{ true }}">
+        <a class="pg-link" href="Workspace.dc.html" data-provider="sso" style="{{secondary}}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="15.5" r="3.5"></circle><path d="M11 13l8.5-8.5M16 8.500l2.500 2.500"></path></svg><span>{{t.sso}}</span></a>
+      </sc-if>
       <button class="pg-btn" type="button" onClick="{{sendLink}}" style="{{secondary}}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.500 11.500L20 4l-5.500 16-3-6.500z"></path><path d="M11.500 13.500L20 4"></path></svg><span>{{t.magic}}</span></button>
     </div>
     <sc-if value="{{sent}}" hint-placeholder-val="{{ false }}">
@@ -107,12 +116,12 @@ a{color:#2457C5}a:hover{color:#1A3F8F}
 var T = {
   en: { language: 'Language', signIn: 'Sign in', create: 'Create account', titleIn: 'Welcome back', titleUp: 'Create account', subIn: 'Sign in to share boards and work with your team.', subUp: 'One account for all your workspaces.',
     name: 'Name', namePh: 'Name', email: 'Email', emailPh: 'Email', password: 'Password', pwPh: 'Password', show: 'Show', hide: 'Hide',
-    goIn: 'Sign in', goUp: 'Create account', or: 'or', sso: 'SSO', magic: 'Email link', toUp: '', toUpAct: 'Create account', toIn: '', toInAct: 'Sign in instead', showPw: 'Show password', hidePw: 'Hide password', forgot: 'Forgot password', guest: 'Skip for now',
+    goIn: 'Sign in', goUp: 'Create account', or: 'or', google: 'Google', github: 'GitHub', withGoogle: 'Continue with Google', withGitHub: 'Continue with GitHub', sso: 'SSO', magic: 'Email link', toUp: '', toUpAct: 'Create account', toIn: '', toInAct: 'Sign in instead', showPw: 'Show password', hidePw: 'Hide password', forgot: 'Forgot password', guest: 'Skip for now',
     errName: 'Add your name', errEmail: 'Check the email', errPw: 'Password needs 8+ characters', sent: 'Link sent to {0}',
     note: 'Design prototype: nothing you type here is sent or stored.' },
   zh: { language: '语言', signIn: '登录', create: '注册账户', titleIn: '欢迎回来', titleUp: '注册账户', subIn: '登录后即可分享白板、与团队协作。', subUp: '一个账户，通用于所有工作区。',
     name: '姓名', namePh: '姓名', email: '邮箱', emailPh: '邮箱', password: '密码', pwPh: '密码', show: '显示', hide: '隐藏',
-    goIn: '登录', goUp: '注册账户', or: '或', sso: '单点登录', magic: '邮件链接', toUp: '', toUpAct: '注册账户', toIn: '', toInAct: '改为登录', showPw: '显示密码', hidePw: '隐藏密码', forgot: '忘记密码', guest: '暂时跳过',
+    goIn: '登录', goUp: '注册账户', or: '或', google: 'Google', github: 'GitHub', withGoogle: '使用 Google 继续', withGitHub: '使用 GitHub 继续', sso: '单点登录', magic: '邮件链接', toUp: '', toUpAct: '注册账户', toIn: '', toInAct: '改为登录', showPw: '显示密码', hidePw: '隐藏密码', forgot: '忘记密码', guest: '暂时跳过',
     errName: '请填写姓名', errEmail: '请检查邮箱', errPw: '密码至少 8 位', sent: '链接已发送到 {0}',
     note: '设计原型：你在这里输入的内容不会被发送或保存。' }
 };
@@ -174,6 +183,7 @@ class Component extends DCLogic {
       onSubmit: function (e) { e.preventDefault(); self.setState({ tried: true, shake: self.state.shake + 1 }); },
       sendLink: function () { if (okEmail) self.setState({ sent: true, tried: false }); else self.setState({ tried: true, sent: false, shake: self.state.shake + 1 }); },
       sent: s.sent && okEmail, sentMsg: t.sent.replace('{0}', s.email),
+      hasGoogle: true, hasGitHub: true, hasSso: true,
       primary: 'height: 48px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; background: #2457C5; color: #FFFFFF; font-size: 15px; font-weight: 500;',
       secondary: 'height: 46px; width: 100%; box-sizing: border-box; padding: 0 10px; display: flex; align-items: center; justify-content: center; gap: 8px; text-align: center; border-radius: 12px; background: #FFFFFF; border: 1px solid #DCDDE2; color: #111114; font-size: 14px;'
     };

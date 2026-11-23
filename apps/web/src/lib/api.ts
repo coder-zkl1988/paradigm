@@ -71,7 +71,10 @@ export const auth = {
   link: (email: string, purpose: 'signin' | 'reset' = 'signin') => api<{ sent: boolean; devLink?: string }>('POST', '/v1/auth/link', { email, purpose }),
   verify: (token: string) => api<Signed>('POST', '/v1/auth/link/verify', { token }),
   reset: (token: string, password: string) => api<Signed>('POST', '/v1/auth/reset', { token, password }),
-  sso: (next?: string) => api<{ url: string }>('GET', '/v1/auth/sso' + (next ? `?next=${encodeURIComponent(next)}` : '')),
+  /** The outside accounts this server can sign people in with (Google, GitHub, single sign-on). */
+  providers: () => api<{ providers: { id: string; name: string }[] }>('GET', '/v1/auth/providers'),
+  /** Where to send the browser to sign in with one of them. */
+  oauth: (provider: string, next?: string) => api<{ url: string }>('GET', `/v1/auth/oauth/${encodeURIComponent(provider)}` + (next ? `?next=${encodeURIComponent(next)}` : '')),
   ssoFinish: (code: string) => api<Signed>('POST', '/v1/auth/sso/finish', { code }),
   signout: () => api('POST', '/v1/auth/signout').catch(() => null),
   me: () => api<{ user: Me }>('GET', '/v1/me'),

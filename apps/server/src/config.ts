@@ -30,6 +30,17 @@ export interface Config {
   oidcClientSecret: string;
   /** What the single sign-on button's provider is called in messages. */
   oidcName: string;
+  /** Sign-in with Google: an OAuth client from Google Cloud. Both are needed to turn it on. */
+  googleClientId: string;
+  googleClientSecret: string;
+  googleIssuer: string;
+  /** Sign-in with GitHub: an OAuth app. Both are needed to turn it on. */
+  githubClientId: string;
+  githubClientSecret: string;
+  /** https://github.com, or a GitHub Enterprise Server's address. */
+  githubUrl: string;
+  githubApiUrl: string;
+  githubPkce: boolean;
   sandbox: SandboxMode;
   dockerImage: string;
   /** The built-in agent: provider and model id from the pi-ai catalog. Empty means pick by the keys present. */
@@ -67,6 +78,7 @@ function parseAgents(raw: string): Record<string, string> {
 export function loadConfig(over: Partial<Config> = {}): Config {
   const port = num('PORT', 8787);
   const sandbox = env('PARADIGM_SANDBOX', 'off') as SandboxMode;
+  const githubUrl = env('GITHUB_URL', 'https://github.com').replace(/\/$/, '');
   const c: Config = {
     port,
     host: env('HOST', '127.0.0.1'),
@@ -80,6 +92,14 @@ export function loadConfig(over: Partial<Config> = {}): Config {
     oidcClientId: env('OIDC_CLIENT_ID'),
     oidcClientSecret: env('OIDC_CLIENT_SECRET'),
     oidcName: env('OIDC_NAME', 'your company'),
+    googleClientId: env('GOOGLE_CLIENT_ID'),
+    googleClientSecret: env('GOOGLE_CLIENT_SECRET'),
+    googleIssuer: 'https://accounts.google.com',
+    githubClientId: env('GITHUB_CLIENT_ID'),
+    githubClientSecret: env('GITHUB_CLIENT_SECRET'),
+    githubUrl,
+    githubApiUrl: githubUrl === 'https://github.com' ? 'https://api.github.com' : `${githubUrl}/api/v3`,
+    githubPkce: githubUrl === 'https://github.com',
     sandbox: ['off', 'local', 'docker'].includes(sandbox) ? sandbox : 'off',
     dockerImage: env('PARADIGM_DOCKER_IMAGE', 'node:22-bookworm'),
     piProvider: env('PI_PROVIDER'),

@@ -126,16 +126,42 @@ export function SignInView({ v }: { v: any }) {
           </span>
           <span style={css("flex: 1 1 auto; height: 1px; background: #E3E4E8")} />
         </div>
-        <div style={css("display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px")}>
-          <a className="pg-link" href={v.links?.Workspace} onClick={v.follow} style={css(v.secondary)}>
-            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="8.5" cy="15.5" r="3.5" />
-              <path d="M11 13l8.5-8.5M16 8.500l2.500 2.500" />
-            </svg>
-            <span>
-              {v.t?.sso}
-            </span>
-          </a>
+        <div className="si-alt" style={css("display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px")}>
+          {v.hasGoogle ? (<>
+            <a className="pg-link" href={v.links?.Workspace} onClick={v.follow} data-provider="google" aria-label={v.t?.withGoogle} style={css(v.secondary)}>
+              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="8.5" />
+                <path d="M3.5 12h17M12 3.5c2.300 2.400 3.400 5.200 3.400 8.500s-1.100 6.100-3.400 8.500c-2.300-2.400-3.400-5.200-3.400-8.500s1.100-6.100 3.400-8.500z" />
+              </svg>
+              <span>
+                {v.t?.google}
+              </span>
+            </a>
+          </>) : null}
+          {v.hasGitHub ? (<>
+            <a className="pg-link" href={v.links?.Workspace} onClick={v.follow} data-provider="github" aria-label={v.t?.withGitHub} style={css(v.secondary)}>
+              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6.500 4v10.500" />
+                <circle cx="17.500" cy="6.500" r="2.500" />
+                <circle cx="6.500" cy="17.500" r="2.500" />
+                <path d="M17.500 9a8.500 8.500 0 0 1-8.500 8.500" />
+              </svg>
+              <span>
+                {v.t?.github}
+              </span>
+            </a>
+          </>) : null}
+          {v.hasSso ? (<>
+            <a className="pg-link" href={v.links?.Workspace} onClick={v.follow} data-provider="sso" style={css(v.secondary)}>
+              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="8.5" cy="15.5" r="3.5" />
+                <path d="M11 13l8.5-8.5M16 8.500l2.500 2.500" />
+              </svg>
+              <span>
+                {v.t?.sso}
+              </span>
+            </a>
+          </>) : null}
           <button className="pg-btn" type="button" onClick={v.sendLink} style={css(v.secondary)}>
             <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
               <path d="M4.500 11.500L20 4l-5.500 16-3-6.500z" />

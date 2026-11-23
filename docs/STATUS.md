@@ -81,7 +81,11 @@ whiteboard, with a server behind every part the draft only simulated.
   could not be seen, and a note placed with a click lost the keyboard to the
   board, so typing triggered shortcuts. Both are fixed in
   `scripts/port-board.py`.
-- **Services that need settings**: email, single sign-on, images, videos and
+- **Sign in with Google and GitHub**: added after the draft, as two more
+  buttons beside SSO and Email link (in the draft and on the design canvas
+  too). Each shows only when the server has its keys. The icons are plain
+  line icons, not the companies' logos.
+- **Services that need settings**: email, Google and GitHub sign-in, single sign-on, images, videos and
   each agent run for real once their keys are set (see the README); until
   then they say they are stand-ins. Videos need a service with the OpenAI
   Videos API format, since OpenAI closed its own in September 2026.

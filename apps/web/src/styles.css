@@ -85,6 +85,7 @@ a.wb-menu-item:hover{color:#111114}
 @keyframes si-shakeA{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
 @keyframes si-shakeB{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
 @media (prefers-reduced-motion: reduce){.si-bot,.si-bot *{animation:none !important;transition:none !important}}
+.si-alt>:last-child:nth-child(odd){grid-column:1/-1}
 .pg-open{font:inherit;text-align:left;cursor:pointer;padding:0;width:100%}
 /* An embed with toolbar=off shows the board and nothing around it. */
 .pd-embed-bare nav.wb-bar,.pd-embed-bare main>div:has(>div.wb-bar>span[role="status"]),.pd-embed-bare main>div:has(>div.wb-bar>button[aria-label]):not(:has([role="dialog"])){display:none!important}

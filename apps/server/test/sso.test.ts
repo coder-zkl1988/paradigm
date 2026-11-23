@@ -70,12 +70,12 @@ describe('single sign-on', () => {
 
   it('signs an existing account in rather than making a second one', async () => {
     const { email } = await t.signup('Ana', 'ana.sso@example.com');
-    person.email = email; person.name = 'Someone Else';
+    person.email = email; person.name = 'Someone Else'; person.sub = 'u2';
     const url = await start();
     const back = await callback({ code: 'good-code', state: url.searchParams.get('state')! });
     const r = await t.call('POST', '/v1/auth/sso/finish', { code: back.searchParams.get('sso') });
     expect(r.json.user).toMatchObject({ email, name: 'Ana' });
-    person.email = 'Mei@Example.com'; person.name = 'Mei Chen';
+    person.email = 'Mei@Example.com'; person.name = 'Mei Chen'; delete person.sub;
   });
 
   it('turns away a reused state, a bad code, a cancel and an unverified email', async () => {

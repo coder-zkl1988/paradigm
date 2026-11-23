@@ -8,6 +8,13 @@ export const newId = (prefix: string) => prefix + '_' + randomBytes(8).toString(
 /** A secret for links and sessions. Only its hash is stored. */
 export const newSecret = () => randomBytes(32).toString('base64url');
 export const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
+/** OAuth's state and nonce. */
+export const randomState = () => randomBytes(24).toString('base64url');
+/** A PKCE verifier and its S256 challenge. */
+export function pkce() {
+  const verifier = randomBytes(32).toString('base64url');
+  return { verifier, challenge: createHash('sha256').update(verifier).digest('base64url') };
+}
 
 export async function hashPassword(pw: string): Promise<string> {
   const salt = randomBytes(16), key = await scrypt(pw, salt, 64);

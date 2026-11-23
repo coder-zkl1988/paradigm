@@ -61,10 +61,19 @@ what it draws arrives as a proposal you accept or reject.
 Each turns on when its settings are present (see `.env.example`); without
 them the app still works and says what is a stand-in.
 
+The sign-in page shows a button only for the providers that are set up. A
+person who signs in with Google, GitHub or single sign-on lands on the account
+that already has that verified email, or a new one; after that the outside
+account stays linked even if its email changes. Another provider goes in
+`apps/server/src/lib/signin.ts` (any OpenID Connect provider needs only its
+issuer and keys), plus a button in `design/SignIn.dc.html`.
+
 | Service | Real when | Without it |
 | --- | --- | --- |
 | Email (sign-in links, password resets, invites) | `SMTP_URL` and `MAIL_FROM` | Links are printed in the server log, and in development shown on the page |
-| Single sign-on | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` for any OpenID Connect provider. Register `PUBLIC_URL/v1/auth/sso/callback` as its redirect address | The SSO button says it is not set up |
+| Sign in with Google | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` from a Google Cloud OAuth client. Register `PUBLIC_URL/v1/auth/oauth/google/callback` as its redirect URI | No Google button |
+| Sign in with GitHub | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` from a GitHub OAuth app (and `GITHUB_URL` for Enterprise Server). Set its callback URL to `PUBLIC_URL/v1/auth/oauth/github/callback` | No GitHub button |
+| Single sign-on | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` for any OpenID Connect provider (Okta, Entra ID, Auth0, Keycloak). Register `PUBLIC_URL/v1/auth/sso/callback` as its redirect address | No SSO button |
 | Images | `OPENROUTER_API_KEY` or `OPENAI_API_KEY` | A placeholder picture |
 | Videos | `VIDEO_API_URL` and `VIDEO_API_KEY` for a service with the OpenAI Videos API format (POST /videos, GET /videos/{id}, GET /videos/{id}/content). OpenAI closed its own in September 2026; several gateways still offer the format | A placeholder clip |
 
@@ -84,5 +93,5 @@ npm run build
 The server tests run real agent adapters without keys: Pi with pi-ai's
 scripted provider, and ACP and Codex against small stand-ins in
 `apps/server/test/fixtures` that speak their protocols. Email goes to a real
-SMTP server on a local port, and single sign-on and video run against local
-stand-ins of a provider.
+SMTP server on a local port, and Google, GitHub, single sign-on and video
+run against local stand-ins of each provider.
