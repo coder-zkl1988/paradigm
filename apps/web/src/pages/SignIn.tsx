@@ -15,8 +15,8 @@ export function SignIn() {
   const nav = useNavigate(), [params, setParams] = useSearchParams();
   const { lang, flipLang, signedIn } = useSession();
   const [s, setS] = useState({ mode: 'in' as Mode, name: '', email: '', pw: '', show: false, tried: false, sent: false, focus: null as null | string, look: { x: 0, y: 0 }, shake: 0, busy: false, server: '' });
-  // Only the outside accounts the server is set up for get a button.
-  const [providers, setProviders] = useState<string[]>([]);
+  // Only the outside accounts the server is set up for get a button (null until the server says).
+  const [providers, setProviders] = useState<string[] | null>(null);
   const set = (p: Partial<typeof s>) => setS((o) => ({ ...o, ...p }));
   const botEl = useRef<HTMLElement | null>(null);
   const reset = params.get('reset');
@@ -42,6 +42,7 @@ export function SignIn() {
     else set({ tried: true, server: ssoError || '', shake: 1 });
   }, []);
 
+  const withEmail = !!reset || (providers !== null && providers.length === 0);
   const up = s.mode === 'up';
   const okEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.email), okPw = s.pw.length >= 8, okName = !up || s.name.trim().length > 0;
   const ready = okEmail && okPw && okName;
@@ -104,11 +105,14 @@ export function SignIn() {
     pwType: s.show ? 'text' : 'password', showLabel: s.show ? t.hidePw : t.showPw,
     toggleShow: () => set({ show: !s.show }),
     // The draft turns the button into a link once the form is valid; here the form always submits.
-    ready: false, notReady: true, hasError: s.tried && !!error, error,
+    ready: false, notReady: true, hasError: withEmail && s.tried && !!error, error,
     onSubmit: (e: { preventDefault(): void }) => { e.preventDefault(); void submit(); },
     sendLink: () => void sendLink('signin'),
     sent: s.sent && okEmail, sentMsg: t.sent.replace('{0}', s.email),
-    hasGoogle: providers.includes('google'), hasGitHub: providers.includes('github'), hasSso: providers.includes('sso'),
+    hasGoogle: !!providers?.includes('google'), hasGitHub: !!providers?.includes('github'), hasSso: !!providers?.includes('sso'),
+    // People sign in with Google or GitHub. The email and password form only shows on a server with
+    // neither set up (so it can still be used), and for a password reset link.
+    withEmail, errorBelow: !withEmail && !!s.server,
     primary: 'height: 48px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; background: #2457C5; color: #FFFFFF; font-size: 15px; font-weight: 500;' + (s.busy ? ' opacity: 0.7;' : ''),
     secondary: 'height: 46px; width: 100%; box-sizing: border-box; padding: 0 10px; display: flex; align-items: center; justify-content: center; gap: 8px; text-align: center; border-radius: 12px; background: #FFFFFF; border: 1px solid #DCDDE2; color: #111114; font-size: 14px;',
     links: { Workspace: '/', Main: '/board/new' },

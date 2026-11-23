@@ -61,7 +61,10 @@ what it draws arrives as a proposal you accept or reject.
 Each turns on when its settings are present (see `.env.example`); without
 them the app still works and says what is a stand-in.
 
-The sign-in page shows a button only for the providers that are set up. A
+The sign-in page shows a button only for the providers that are set up, and
+no email and password form once Google or GitHub is set up (a server with
+neither keeps the form, so it can still be used; the API still accepts
+passwords and email links). A
 person who signs in with Google, GitHub or single sign-on lands on the account
 that already has that verified email, or a new one; after that the outside
 account stays linked even if its email changes. Another provider goes in
