@@ -34,10 +34,12 @@ export async function api<T = any>(method: string, path: string, body?: unknown,
 }
 
 /** POST that answers with Server-Sent Events. Resolves when the stream ends. */
+/** Reads a Server-Sent Events response. With no body it is a GET. */
 export async function stream(path: string, body: unknown, onEvent: (e: any) => void, signal?: AbortSignal): Promise<void> {
-  const headers: Record<string, string> = { 'content-type': 'application/json', accept: 'text/event-stream' };
+  const headers: Record<string, string> = { accept: 'text/event-stream' };
+  if (body !== undefined) headers['content-type'] = 'application/json';
   if (session.token) headers.authorization = `Bearer ${session.token}`;
-  const r = await fetch(BASE + path, { method: 'POST', headers, body: JSON.stringify(body), signal });
+  const r = await fetch(BASE + path, body === undefined ? { headers, signal } : { method: 'POST', headers, body: JSON.stringify(body), signal });
   if (!r.ok) {
     let msg = `The server answered ${r.status}`;
     try { msg = (await r.json()).error || msg; } catch { /* not JSON */ }
@@ -69,7 +71,8 @@ export const auth = {
   link: (email: string, purpose: 'signin' | 'reset' = 'signin') => api<{ sent: boolean; devLink?: string }>('POST', '/v1/auth/link', { email, purpose }),
   verify: (token: string) => api<Signed>('POST', '/v1/auth/link/verify', { token }),
   reset: (token: string, password: string) => api<Signed>('POST', '/v1/auth/reset', { token, password }),
-  sso: () => api('GET', '/v1/auth/sso'),
+  sso: (next?: string) => api<{ url: string }>('GET', '/v1/auth/sso' + (next ? `?next=${encodeURIComponent(next)}` : '')),
+  ssoFinish: (code: string) => api<Signed>('POST', '/v1/auth/sso/finish', { code }),
   signout: () => api('POST', '/v1/auth/signout').catch(() => null),
   me: () => api<{ user: Me }>('GET', '/v1/me'),
   update: (p: Partial<Me> & { password?: string }) => api<{ user: Me }>('PATCH', '/v1/me', p),
@@ -91,7 +94,7 @@ export const boards = {
   shared: (q = '') => api<{ boards: Summary[] }>('GET', `/v1/shared?q=${encodeURIComponent(q)}`),
   create: (ws: string, p: { title?: string; template?: string | null; file?: unknown }) => api<{ board: FullBoard }>('POST', `/v1/workspaces/${ws}/boards`, p),
   get: (id: string) => api<{ board: FullBoard }>('GET', `/v1/boards/${id}`),
-  save: (id: string, p: { file: unknown; version?: number; title?: string; settings?: unknown }) => api<{ version: number; updatedAt: string }>('PUT', `/v1/boards/${id}`, p),
+  save: (id: string, p: { file: unknown; version?: number; title?: string; settings?: unknown; conn?: string }) => api<{ version: number; updatedAt: string }>('PUT', `/v1/boards/${id}`, p),
   rename: (id: string, title: string) => api('PATCH', `/v1/boards/${id}`, { title }),
   trash: (id: string) => api('POST', `/v1/boards/${id}/trash`, {}),
   restore: (id: string) => api('POST', `/v1/boards/${id}/restore`, {}),
@@ -108,14 +111,26 @@ export function backend(kind: string, body: unknown): Promise<any> {
   if (!e) return Promise.reject(new Error(`Unknown backend call ${kind}`));
   let path = e.path;
   if (kind === 'marketRun') path = path.replace('{id}', encodeURIComponent((body as { node: string }).node));
-  return api(e.method, path, body);
+  if (kind === 'videoJob') path = path.replace('{jobId}', encodeURIComponent((body as { jobId: string }).jobId));
+  return api(e.method, path, e.method === 'GET' ? undefined : body);
 }
 
 export const agent = {
   run: (req: AgentRunRequest, onEvent: (e: AgentEvent) => void, signal?: AbortSignal) => stream('/v1/agent/runs', req, onEvent, signal),
-  answer: (runId: string, requestId: string, decision: 'allow_once' | 'allow_always' | 'deny') => api('POST', `/v1/agent/runs/${runId}/permissions`, { requestId, decision }),
+  answer: (runId: string, requestId: string, decision: 'allow_once' | 'allow_always' | 'deny') => api('POST', `/v1/agent/runs/${runId}/permissions`, { requestId, decision }).catch(() => null),
   stop: (runId: string) => api('POST', `/v1/agent/runs/${runId}/stop`, {}).catch(() => null),
+  pause: (runId: string) => api('POST', `/v1/agent/runs/${runId}/pause`, {}).catch(() => null),
+  resume: (runId: string) => api('POST', `/v1/agent/runs/${runId}/resume`, {}).catch(() => null),
 };
+
+/** Live editing: who has the board open, and when someone saves it. Ends when the board or link goes away. */
+export type LiveEvent =
+  | { type: 'hello'; conn: string; version: number; people: { conn: string; id: string | null; name: string }[] }
+  | { type: 'people'; people: { conn: string; id: string | null; name: string }[] }
+  | { type: 'saved'; version: number; by: { id: string; name: string }; conn: string | null }
+  | { type: 'gone'; reason: 'trashed' | 'deleted' | 'link_off' };
+export const live = (where: { boardId?: string; viewToken?: string }, onEvent: (e: LiveEvent) => void, signal: AbortSignal) =>
+  stream(where.viewToken ? `/v1/public/${encodeURIComponent(where.viewToken)}/live` : `/v1/boards/${where.boardId}/live`, undefined, onEvent, signal);
 
 export const files = {
   export: (format: 'docx' | 'xlsx' | 'pptx', title: string, content: unknown) => api<{ url: string; name: string }>('POST', '/v1/files/export', { format, title, content }),

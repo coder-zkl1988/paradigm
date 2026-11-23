@@ -7,9 +7,10 @@ import { piOverride } from '../src/agents/pi';
 
 let t: Awaited<ReturnType<typeof makeApp>>, token: string, boardId: string;
 const fake = join(__dirname, 'fixtures', 'fake-acp-agent.mjs');
+const fakeCodex = join(__dirname, 'fixtures', 'fake-codex-app-server.mjs');
 
 beforeAll(async () => {
-  t = await makeApp({ acpAgents: { fake: `node ${fake}` } });
+  t = await makeApp({ acpAgents: { fake: `node ${fake}` }, codexBin: `node ${fakeCodex}` });
   token = (await t.signup()).token;
   const team = (await t.call('GET', '/v1/workspaces', undefined, token)).json.workspaces[0].id;
   boardId = (await t.call('POST', `/v1/workspaces/${team}/boards`, { template: 'Code flow' }, token)).json.board.id;
@@ -44,6 +45,22 @@ describe('stand-in runs', () => {
     });
     expect(asked).toEqual(['terminal']);
     expect(ev.some((e) => e.type === 'tool_call_update' && e.status === 'blocked')).toBe(true);
+    expect(ev[ev.length - 1].status).toBe('success');
+  });
+  it('holds tool calls while paused and carries on when resumed', async () => {
+    let runId = '', paused = false, calls = 0, resumedAt = 0, heldUntil = 0;
+    const ev = await run({ harness: 'claude', instruction: 'Fix the bug', context: { text: '', feeds: ['terminal'] }, permissions: { connector: 'allow', tool: 'allow' } }, async (e) => {
+      if (e.type === 'run') runId = e.runId;
+      if (e.type === 'tool_call') {
+        calls++;
+        if (calls === 1 && !paused) {
+          paused = true;
+          await t.call('POST', `/v1/agent/runs/${runId}/pause`, {}, token);
+          setTimeout(async () => { resumedAt = Date.now(); await t.call('POST', `/v1/agent/runs/${runId}/resume`, {}, token); }, 300);
+        } else if (calls === 2) heldUntil = Date.now();
+      }
+    });
+    expect(heldUntil).toBeGreaterThanOrEqual(resumedAt);
     expect(ev[ev.length - 1].status).toBe('success');
   });
   it('turns the toolbar chat into a proposal of shapes and arrows', async () => {
@@ -119,5 +136,35 @@ describe('ACP agent', () => {
     expect(ev.filter((e) => e.type === 'tool_call').map((e) => [e.res, e.title])).toEqual([['folder', 'Read README.md'], ['terminal', 'npm test']]);
     expect(ev[ev.length - 1]).toMatchObject({ status: 'success', output: { value: 'Tests ran. Wrote notes/out.md' } });
     expect(existsSync(join(t.dir, 'sandboxes', boardId, 'notes', 'out.md'))).toBe(true);
+  });
+});
+
+describe('Codex app-server', () => {
+  const withKey = async <T>(f: () => Promise<T>) => {
+    const was = process.env.CODEX_API_KEY;
+    process.env.CODEX_API_KEY = 'test-key';
+    try { return await f(); } finally { if (was === undefined) delete process.env.CODEX_API_KEY; else process.env.CODEX_API_KEY = was; }
+  };
+  it('asks on the tool node before each command and file change', async () => {
+    const asked: string[] = [];
+    let runId = '';
+    const ev = await withKey(() => run({ harness: 'codex', instruction: 'Fix it', permissions: { terminal: 'ask', folder: 'ask', browser: 'allow' } }, async (e) => {
+      if (e.type === 'run') runId = e.runId;
+      if (e.type === 'permission_request') {
+        asked.push(`${e.res} ${e.toolCallId}`);
+        await t.call('POST', `/v1/agent/runs/${runId}/permissions`, { requestId: e.requestId, decision: e.res === 'terminal' ? 'allow_once' : 'deny' }, token);
+      }
+    }));
+    expect(ev[0]).toMatchObject({ type: 'run', harness: 'codex', simulated: false });
+    expect(asked).toEqual(['terminal cmd_1', 'folder fc_1']);
+    expect(ev.filter((e) => e.type === 'tool_call').map((e) => [e.id, e.res])).toEqual([['cmd_1', 'terminal'], ['fc_1', 'folder']]);
+    expect(ev.some((e) => e.type === 'tool_call_update' && e.id === 'fc_1' && e.status === 'blocked')).toBe(true);
+    expect(ev[ev.length - 1]).toMatchObject({ status: 'success', output: { value: 'command accept, edit decline. sandbox readOnly, network true, policy untrusted' } });
+  });
+  it('answers from the board without asking when both are allowed', async () => {
+    let asked = 0;
+    const ev = await withKey(() => run({ harness: 'codex', instruction: 'Fix it', permissions: { terminal: 'allow', folder: 'allow', browser: 'blocked' } }, (e) => { if (e.type === 'permission_request') asked++; }));
+    expect(asked).toBe(0);
+    expect(ev[ev.length - 1]).toMatchObject({ status: 'success', output: { value: 'command accept, edit accept. sandbox workspaceWrite, network false, policy never' } });
   });
 });

@@ -22,6 +22,8 @@ export class Run {
   private status = new Map<string, string>();
   finished = false;
   readonly startedAt = Date.now();
+  private held: Promise<void> | null = null;
+  private release: (() => void) | null = null;
 
   constructor(readonly userId: string, readonly perms: Partial<Record<ToolRes, Perm>>) {}
 
@@ -40,8 +42,16 @@ export class Run {
 
   permOf(res: ToolRes): Perm { return this.perms[res] || DEFAULT_PERMS[res] || 'ask'; }
 
+  /** Pausing holds the next tool call (and so the agent) until resume() or stop(). */
+  pause() { if (this.finished || this.held) return; this.held = new Promise<void>((r) => { this.release = r; }); }
+  resume() { const r = this.release; this.held = null; this.release = null; r?.(); }
+  get paused() { return !!this.held; }
+  async hold() { while (this.held && !this.abort.signal.aborted) await this.held; }
+
   /** Shows a tool call on the board. Returns false when it may not run. */
   async toolCall(id: string, ev: ToolEvent, more: Partial<Extract<AgentEvent, { type: 'tool_call' }>> = {}): Promise<boolean> {
+    await this.hold();
+    if (this.abort.signal.aborted) return false;
     this.emit({ type: 'tool_call', id, res: ev.res, op: ev.op, title: toolEventText(ev), tool: ev.tool, target: ev.target, parent: ev.parent || null, ...(ev.sub ? { sub: ev.sub } : {}), raw: ev.raw, ...more });
     const ok = await this.gate(id, ev.res, toolEventText(ev));
     this.update(id, ok ? 'in_progress' : 'blocked');
@@ -92,6 +102,7 @@ export class Run {
 
   stop() {
     this.abort.abort();
+    this.resume();
     this.cancelQuestions();
   }
 }

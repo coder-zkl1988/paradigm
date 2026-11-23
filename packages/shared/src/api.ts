@@ -18,6 +18,7 @@ export const API = {
   http: { method: 'POST', path: '/v1/http/proxy', usedBy: 'API request', note: 'Sends the request from the server, so keys stay out of the browser.' },
   imagegen: { method: 'POST', path: '/v1/media/images', usedBy: 'Image generation', note: 'Makes one image and returns its address.' },
   videogen: { method: 'POST', path: '/v1/media/videos', usedBy: 'Video generation', note: 'Starts a video job. Ask GET /v1/media/videos/{jobId} until it is done.' },
+  videoJob: { method: 'GET', path: '/v1/media/videos/{jobId}', usedBy: 'Video generation', note: 'Says whether a video job is running, done or failed, and where the video is once it is done.' },
   export: { method: 'POST', path: '/v1/files/export', usedBy: 'Doc, Sheet and Slides', note: 'Turns what a Doc, Sheet or Slides node shows into a .docx, .xlsx or .pptx file and returns its address.' },
   marketList: { method: 'GET', path: '/v1/market/nodes', usedBy: 'Node market', note: 'Lists the nodes in the market. Each entry is a manifest that passed the check.' },
   marketPublish: { method: 'POST', path: '/v1/market/nodes', usedBy: 'Node market', note: 'Uploads a manifest. The server runs the same check again before it lists the node.' },

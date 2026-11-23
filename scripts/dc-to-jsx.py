@@ -129,6 +129,11 @@ def main():
     s = open(src).read()
     body = s[s.index('</helmet>') + 9: s.index('<script type="text/x-dc"')]
     body = body.replace('</x-dc>', '')
+    # Live editing: a sticky note names who wrote it, where the draft always said "You".
+    you = '<span style="position: absolute; left: 18px; bottom: 12px; font-size: 12px; color: rgba(0,0,0,0.6); pointer-events: none">{{i.k60}}</span>'
+    if name == 'BoardView':
+        assert body.count(you) == 1, 'sticky author label moved in the draft'
+        body = body.replace(you, you.replace('{{i.k60}}', '{{it.byLabel}}'))
     p = P(); p.feed(body)
     jsx = kids(p.root, frozenset(), 2)
     open(out, 'w').write(f'''// Generated from design/{src.split('/')[-1]} by scripts/dc-to-jsx.py. Do not edit by hand:

@@ -5,6 +5,7 @@ import { acceptInvitesFor, bearer, createSession, createUser, need, publicUser, 
 import { bad, HttpError, unauthorized } from '../lib/errors';
 import { body, EMAIL, str } from '../lib/http';
 import { checkPassword, hashPassword, newSecret, sha256 } from '../lib/ids';
+import { finishSso, ssoReady, startSso } from '../lib/oidc';
 
 const LINK_MIN = 30;
 
@@ -61,7 +62,41 @@ export function authRoutes(app: FastifyInstance, { db, cfg, mailer }: Deps) {
     return signedIn(u);
   });
 
-  app.get('/v1/auth/sso', async () => { throw new HttpError(501, 'Single sign-on is not set up on this server yet.', 'not_configured'); });
+  /** Single sign-on: where to send the browser. The provider sends it back to the callback below. */
+  app.get('/v1/auth/sso', async (req) => {
+    if (!ssoReady(cfg)) throw new HttpError(501, 'Single sign-on is not set up on this server yet.', 'not_configured');
+    const q = req.query as { next?: string };
+    const next = typeof q.next === 'string' && q.next.startsWith('/') && !q.next.startsWith('//') ? q.next.slice(0, 300) : null;
+    const s = await startSso(cfg);
+    db.prepare('DELETE FROM sso_states WHERE expires_at < ?').run(now());
+    db.prepare('INSERT INTO sso_states (state_hash, nonce, verifier, next, expires_at) VALUES (?, ?, ?, ?, ?)').run(sha256(s.state), s.nonce, s.verifier, next, new Date(Date.now() + LINK_MIN * 60_000).toISOString());
+    return { url: s.url };
+  });
+
+  /** The provider sends the browser here. Hands the page a one-time code, never the session itself. */
+  app.get('/v1/auth/sso/callback', async (req, reply) => {
+    const q = req.query as Record<string, string | undefined>;
+    const back = (p: Record<string, string>) => reply.redirect(`${cfg.publicUrl}/signin?${new URLSearchParams(p)}`);
+    const row = q.state ? db.prepare('SELECT * FROM sso_states WHERE state_hash = ?').get(sha256(q.state)) as { nonce: string; verifier: string; next: string | null; expires_at: string } | undefined : undefined;
+    if (q.state) db.prepare('DELETE FROM sso_states WHERE state_hash = ?').run(sha256(q.state));
+    if (q.error) return back({ sso_error: q.error === 'access_denied' ? 'The sign-in was cancelled.' : (q.error_description || 'The sign-in did not go through. Try again.').slice(0, 200) });
+    if (!row || row.expires_at < now() || !q.code) return back({ sso_error: 'The sign-in took too long or was already used. Try again.' });
+    try {
+      const who = await finishSso(cfg, q.code, row);
+      if (!byEmail(who.email)) createUser(db, { email: who.email, name: who.name, pwHash: null });
+      const code = newSecret();
+      db.prepare('INSERT INTO login_tokens (token_hash, email, purpose, expires_at) VALUES (?, ?, ?, ?)').run(sha256(code), who.email, 'sso', new Date(Date.now() + 2 * 60_000).toISOString());
+      return back({ sso: code, ...(row.next ? { next: row.next } : {}) });
+    } catch (e) {
+      req.log.warn({ err: e }, 'single sign-on failed');
+      return back({ sso_error: e instanceof HttpError ? e.message : 'The sign-in did not go through. Try again.' });
+    }
+  });
+
+  app.post('/v1/auth/sso/finish', async (req) => {
+    const e = useToken(body(req).code, 'sso');
+    return signedIn(byEmail(e) || createUser(db, { email: e, name: e.split('@')[0], pwHash: null }));
+  });
 
   app.post('/v1/auth/signout', async (req) => {
     const t = bearer(req);

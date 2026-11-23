@@ -26,12 +26,12 @@ function splitCommand(cmd: string): string[] {
   return out;
 }
 
-/** Minimal JSON-RPC 2.0 over newline-delimited JSON. */
-class Rpc {
+/** Minimal JSON-RPC 2.0 over newline-delimited JSON. `tagged` false leaves out the "jsonrpc" field, as the Codex app-server expects. */
+export class Rpc {
   private next = 1;
   private pending = new Map<number, { resolve: (v: any) => void; reject: (e: Error) => void }>();
   private buf = '';
-  constructor(private child: ChildProcess, private onRequest: (method: string, params: any) => Promise<any>, private onNotify: (method: string, params: any) => void) {
+  constructor(private child: ChildProcess, private onRequest: (method: string, params: any) => Promise<any>, private onNotify: (method: string, params: any) => void, private tagged = true) {
     child.stdout!.on('data', (b: Buffer) => {
       this.buf += b.toString('utf8');
       let i: number;
@@ -42,20 +42,20 @@ class Rpc {
     });
     child.on('exit', (code) => { for (const p of this.pending.values()) p.reject(new Error(`The agent stopped (exit ${code})`)); this.pending.clear(); });
   }
-  private send(o: unknown) { this.child.stdin!.write(JSON.stringify(o) + '\n'); }
+  private send(o: Record<string, unknown>) { this.child.stdin!.write(JSON.stringify(this.tagged ? { jsonrpc: '2.0', ...o } : o) + '\n'); }
   request(method: string, params: unknown): Promise<any> {
     const id = this.next++;
-    return new Promise((resolve, reject) => { this.pending.set(id, { resolve, reject }); this.send({ jsonrpc: '2.0', id, method, params }); });
+    return new Promise((resolve, reject) => { this.pending.set(id, { resolve, reject }); this.send({ id, method, params }); });
   }
-  notify(method: string, params: unknown) { this.send({ jsonrpc: '2.0', method, params }); }
+  notify(method: string, params: unknown) { this.send({ method, params }); }
   private async handle(line: string) {
     let m: any; try { m = JSON.parse(line); } catch { return; }
     if (m.id !== undefined && (m.result !== undefined || m.error !== undefined) && !m.method) {
       const p = this.pending.get(m.id); if (!p) return; this.pending.delete(m.id);
       if (m.error) p.reject(new Error(m.error.message || 'The agent answered with an error')); else p.resolve(m.result);
     } else if (m.method && m.id !== undefined) {
-      try { this.send({ jsonrpc: '2.0', id: m.id, result: await this.onRequest(m.method, m.params) }); }
-      catch (e) { this.send({ jsonrpc: '2.0', id: m.id, error: { code: -32000, message: (e as Error).message } }); }
+      try { this.send({ id: m.id, result: await this.onRequest(m.method, m.params) }); }
+      catch (e) { this.send({ id: m.id, error: { code: -32000, message: (e as Error).message } }); }
     } else if (m.method) this.onNotify(m.method, m.params);
   }
 }

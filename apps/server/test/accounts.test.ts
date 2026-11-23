@@ -88,3 +88,18 @@ describe('boards', () => {
     expect((await t.call('PUT', '/v1/me/nodes', { pins: ['prompt', 'llm', 'html', 'gate', 'code', 'md', 'doc'] }, a.token)).status).toBe(400);
   });
 });
+
+describe('view links', () => {
+  it('opens a board read-only by its link, and stops when the link is turned off', async () => {
+    const a = await t.signup();
+    const team = (await t.call('GET', '/v1/workspaces', undefined, a.token)).json.workspaces[0].id;
+    const b = (await t.call('POST', `/v1/workspaces/${team}/boards`, { template: 'w4' }, a.token)).json.board;
+    const { token } = (await t.call('POST', `/v1/boards/${b.id}/link`, {}, a.token)).json;
+    expect((await t.call('POST', `/v1/boards/${b.id}/link`, {}, a.token)).json.token).toBe(token);
+    const pub = await t.call('GET', `/v1/public/${token}`);
+    expect(pub.json.board).toMatchObject({ id: b.id, role: 'viewer', nodes: 5 });
+    expect(pub.json.board.settings.perms).toBeUndefined();
+    await t.call('DELETE', `/v1/boards/${b.id}/link`, undefined, a.token);
+    expect((await t.call('GET', `/v1/public/${token}`)).status).toBe(404);
+  });
+});

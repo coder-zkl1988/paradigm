@@ -1,7 +1,7 @@
 // Image and video generation. Images: OpenRouter through pi-ai when
 // OPENROUTER_API_KEY is set, else OpenAI when OPENAI_API_KEY is set, else a
-// stand-in. Videos: no provider is wired in yet, so jobs finish at once as
-// stand-ins; add one in makeVideo().
+// stand-in. Videos: the service in VIDEO_API_URL (see lib/video.ts), else
+// jobs finish at once as stand-ins.
 
 import type { FastifyInstance } from 'fastify';
 import type { Deps } from '../app';
@@ -12,6 +12,7 @@ import { body, str } from '../lib/http';
 import { newId } from '../lib/ids';
 import { saveFile } from '../lib/files';
 import { getModels } from '../agents/pi';
+import { followVideo, startVideo, videoReady } from '../lib/video';
 
 const SIZE: Record<string, string> = { '1:1': '1024x1024', '16:9': '1536x1024', '9:16': '1024x1536', '4:3': '1536x1024', '3:4': '1024x1536' };
 
@@ -44,11 +45,6 @@ async function makeImage(prompt: string, ratio: string, model: string): Promise<
   return null;
 }
 
-/** Hook for a video provider. Returns null while none is configured. */
-async function makeVideo(_prompt: string, _ratio: string, _seconds: number): Promise<{ url: string } | null> {
-  return null;
-}
-
 export function mediaRoutes(app: FastifyInstance, { db, cfg }: Deps) {
   app.post('/v1/media/images', async (req) => {
     const u = need(req), b = body(req), prompt = str(b.prompt, 'Description', { max: 8000 }), ratio = String(b.ratio || '1:1');
@@ -62,15 +58,23 @@ export function mediaRoutes(app: FastifyInstance, { db, cfg }: Deps) {
   app.post('/v1/media/videos', async (req) => {
     const u = need(req), b = body(req), prompt = str(b.prompt, 'Description', { max: 8000 });
     const ratio = String(b.ratio || '16:9'), seconds = Number(b.seconds) || 4;
-    const v = await makeVideo(prompt, ratio, seconds);
     const id = newId('job'), t = now();
-    db.prepare('INSERT INTO video_jobs (id, owner_id, status, url, simulated, done_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(id, u.id, 'done', v?.url || null, v ? 0 : 1, t, t);
-    return { jobId: id, status: 'done', url: v?.url || null, ...(v ? {} : { simulated: true }), ratio, seconds };
+    if (!videoReady(cfg)) {
+      db.prepare('INSERT INTO video_jobs (id, owner_id, status, url, simulated, done_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(id, u.id, 'done', null, 1, t, t);
+      return { jobId: id, status: 'done', url: null, simulated: true, ratio, seconds };
+    }
+    let pid: string;
+    try { pid = await startVideo(cfg, prompt, ratio, seconds); }
+    catch (e) { throw new HttpError(502, (e as Error).message || 'The video service could not be reached', 'upstream'); }
+    db.prepare('INSERT INTO video_jobs (id, owner_id, status, url, simulated, done_at, created_at, provider_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(id, u.id, 'running', null, 0, t, t, pid);
+    followVideo(db, cfg, id);
+    return { jobId: id, status: 'running', url: null, ratio, seconds };
   });
 
   app.get('/v1/media/videos/:id', async (req) => {
     const u = need(req), j = db.prepare('SELECT * FROM video_jobs WHERE id = ? AND owner_id = ?').get((req.params as { id: string }).id, u.id) as any;
     if (!j) throw notFound('There is no such video job');
-    return { jobId: j.id, status: j.status, url: j.url, ...(j.simulated ? { simulated: true } : {}) };
+    if (j.status === 'running' && videoReady(cfg)) followVideo(db, cfg, j.id); // picks a job up again after a restart
+    return { jobId: j.id, status: j.status, url: j.url, ...(j.error ? { error: j.error } : {}), ...(j.simulated ? { simulated: true } : {}) };
   });
 }
