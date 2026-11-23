@@ -2485,7 +2485,9 @@ export class Board extends Component<BoardProps, any> {
       intro: 'These are the calls the board makes to its server. A service that is not set up on the server answers with a simulated result and says so. JavaScript in Code nodes, Data, Palette and the Doc, Sheet, Slides, Markdown and HTML preview nodes run in the browser.',
       rows: API_ORDER.map(function (k) {
         var a = API[k];
-        return { line: a.method + ' ' + a.path, user: fmt('Used by {0}', tr(API_USER[k])), note: a.note, stream: !!a.stream, streamLabel: 'Streams', state: state(k) };
+        var now = state(k), real = now === 'Connected';
+        return { line: a.method + ' ' + a.path, user: fmt('Used by {0}', tr(API_USER[k])), note: a.note, stream: !!a.stream, streamLabel: 'Streams', state: now,
+          stateStyle: 'flex: 0 0 auto; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; ' + (real ? 'background: #DDF3E4; color: #1F6B3A' : now === 'Checking' ? 'background: #F0F1F4; color: #55565C' : 'background: #FFE9C7; color: #7A4100') };
       }),
       copyLabel: 'Copy contract', copy: function () { var c = contract(); c.baseUrl = window.location.origin; self.copyText(JSON.stringify(c, null, 2), 'Contract copied'); },
       copyStyle: 'align-self: flex-start; height: 40px; padding: 0 16px; background: ' + accent + '; color: #FFFFFF;'

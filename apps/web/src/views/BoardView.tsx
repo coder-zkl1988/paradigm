@@ -1904,7 +1904,7 @@ export function BoardView({ v }: { v: any }) {
                           {ar?.streamLabel}
                         </span>
                       </>) : null}
-                      <span style={css("flex: 0 0 auto; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; background: #FFE9C7; color: #7A4100")}>
+                      <span style={css(ar?.stateStyle)}>
                         {ar?.state}
                       </span>
                     </div>
