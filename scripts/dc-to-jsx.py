@@ -138,6 +138,15 @@ def main():
         tag = '<span style="flex: 0 0 auto; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; background: #FFE9C7; color: #7A4100">{{ar.state}}</span>'
         assert body.count(tag) == 1, 'backend status tag moved in the draft'
         body = body.replace(tag, '<span style="{{ar.stateStyle}}">{{ar.state}}</span>')
+    if name == 'SignInView':
+        # Google and GitHub: the official logo files, once they are added under apps/web/public/brand,
+        # take the place of the draft's placeholder icons.
+        for brand in ('google', 'github'):
+            m = re.search(r'(data-provider="' + brand + r'"[^>]*>)(<svg .*?</svg>)', body)
+            assert m, f'{brand} button moved in the draft'
+            swap = (f'<sc-if value="{{{{logo.{brand}}}}}"><img src="{{{{logo.{brand}}}}}" alt="" width="18" height="18" style="display: block; flex: 0 0 auto"></sc-if>'
+                    f'<sc-if value="{{{{logo.no_{brand}}}}}">{m.group(2)}</sc-if>')
+            body = body[:m.start(2)] + swap + body[m.end(2):]
     p = P(); p.feed(body)
     jsx = kids(p.root, frozenset(), 2)
     open(out, 'w').write(f'''// Generated from design/{src.split('/')[-1]} by scripts/dc-to-jsx.py. Do not edit by hand:

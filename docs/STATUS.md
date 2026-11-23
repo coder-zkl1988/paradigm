@@ -83,8 +83,9 @@ whiteboard, with a server behind every part the draft only simulated.
   `scripts/port-board.py`.
 - **Sign in with Google and GitHub**: added after the draft, as two more
   buttons beside SSO and Email link (in the draft and on the design canvas
-  too). Each shows only when the server has its keys. The icons are plain
-  line icons, not the companies' logos.
+  too). Each shows only when the server has its keys. The draft has plain
+  line icons there; the app swaps in Google's and GitHub's official logo
+  files once they are added to `apps/web/public/brand`.
 - **Services that need settings**: email, Google and GitHub sign-in, single sign-on, images, videos and
   each agent run for real once their keys are set (see the README); until
   then they say they are stand-ins. Videos need a service with the OpenAI

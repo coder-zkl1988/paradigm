@@ -68,6 +68,10 @@ account stays linked even if its email changes. Another provider goes in
 `apps/server/src/lib/signin.ts` (any OpenID Connect provider needs only its
 issuer and keys), plus a button in `design/SignIn.dc.html`.
 
+The Google and GitHub buttons show the companies' official logos once their
+files are put in `apps/web/public/brand` (where to download them is in the
+README there); until then they show plain icons.
+
 | Service | Real when | Without it |
 | --- | --- | --- |
 | Email (sign-in links, password resets, invites) | `SMTP_URL` and `MAIL_FROM` | Links are printed in the server log, and in development shown on the page |

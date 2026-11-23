@@ -129,10 +129,15 @@ export function SignInView({ v }: { v: any }) {
         <div className="si-alt" style={css("display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px")}>
           {v.hasGoogle ? (<>
             <a className="pg-link" href={v.links?.Workspace} onClick={v.follow} data-provider="google" aria-label={v.t?.withGoogle} style={css(v.secondary)}>
-              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="8.5" />
-                <path d="M3.5 12h17M12 3.5c2.300 2.400 3.400 5.200 3.400 8.500s-1.100 6.100-3.400 8.500c-2.300-2.400-3.400-5.200-3.400-8.500s1.100-6.100 3.400-8.500z" />
-              </svg>
+              {v.logo?.google ? (<>
+                <img src={v.logo?.google} alt="" width="18" height="18" style={css("display: block; flex: 0 0 auto")} />
+              </>) : null}
+              {v.logo?.no_google ? (<>
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="8.5" />
+                  <path d="M3.5 12h17M12 3.5c2.300 2.400 3.400 5.200 3.400 8.500s-1.100 6.100-3.400 8.500c-2.300-2.400-3.400-5.200-3.400-8.500s1.100-6.100 3.400-8.500z" />
+                </svg>
+              </>) : null}
               <span>
                 {v.t?.google}
               </span>
@@ -140,12 +145,17 @@ export function SignInView({ v }: { v: any }) {
           </>) : null}
           {v.hasGitHub ? (<>
             <a className="pg-link" href={v.links?.Workspace} onClick={v.follow} data-provider="github" aria-label={v.t?.withGitHub} style={css(v.secondary)}>
-              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6.500 4v10.500" />
-                <circle cx="17.500" cy="6.500" r="2.500" />
-                <circle cx="6.500" cy="17.500" r="2.500" />
-                <path d="M17.500 9a8.500 8.500 0 0 1-8.500 8.500" />
-              </svg>
+              {v.logo?.github ? (<>
+                <img src={v.logo?.github} alt="" width="18" height="18" style={css("display: block; flex: 0 0 auto")} />
+              </>) : null}
+              {v.logo?.no_github ? (<>
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6.500 4v10.500" />
+                  <circle cx="17.500" cy="6.500" r="2.500" />
+                  <circle cx="6.500" cy="17.500" r="2.500" />
+                  <path d="M17.500 9a8.500 8.500 0 0 1-8.500 8.500" />
+                </svg>
+              </>) : null}
               <span>
                 {v.t?.github}
               </span>
