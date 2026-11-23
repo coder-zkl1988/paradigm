@@ -134,6 +134,10 @@ def main():
     if name == 'BoardView':
         assert body.count(you) == 1, 'sticky author label moved in the draft'
         body = body.replace(you, you.replace('{{i.k60}}', '{{it.byLabel}}'))
+        # Backend interfaces: the draft only had "Simulated"; a real service gets a green tag.
+        tag = '<span style="flex: 0 0 auto; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; background: #FFE9C7; color: #7A4100">{{ar.state}}</span>'
+        assert body.count(tag) == 1, 'backend status tag moved in the draft'
+        body = body.replace(tag, '<span style="{{ar.stateStyle}}">{{ar.state}}</span>')
     p = P(); p.feed(body)
     jsx = kids(p.root, frozenset(), 2)
     open(out, 'w').write(f'''// Generated from design/{src.split('/')[-1]} by scripts/dc-to-jsx.py. Do not edit by hand:
