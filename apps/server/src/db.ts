@@ -34,6 +34,12 @@ const MIGRATIONS: string[] = [
   // Real video jobs take minutes: the provider's job id, and why one failed.
   `ALTER TABLE video_jobs ADD COLUMN provider_id TEXT;
    ALTER TABLE video_jobs ADD COLUMN error TEXT;`,
+  // Sign-in with Google, GitHub and others: which provider a sign-in started with, the
+  // outside accounts linked to each person, and who a one-time sign-in code is for.
+  `ALTER TABLE sso_states ADD COLUMN provider TEXT NOT NULL DEFAULT 'sso';
+   ALTER TABLE login_tokens ADD COLUMN user_id TEXT;
+   CREATE TABLE user_identities (provider TEXT NOT NULL, subject TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, email TEXT, created_at TEXT NOT NULL, PRIMARY KEY (provider, subject));
+   CREATE INDEX user_identities_user ON user_identities(user_id);`,
 ];
 
 export function openDb(file: string): DB {

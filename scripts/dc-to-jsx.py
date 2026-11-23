@@ -26,6 +26,11 @@ EVENTS = ['Click', 'DoubleClick', 'ContextMenu', 'PointerDown', 'PointerMove', '
 for e in EVENTS: ATTR['on' + e.lower()] = 'on' + e
 TAGS = {'lineargradient': 'linearGradient', 'radialgradient': 'radialGradient', 'clippath': 'clipPath', 'foreignobject': 'foreignObject'}
 BIND = re.compile(r'\{\{\s*(.*?)\s*\}\}')
+# The sign-in buttons' logos: Google's "G" and GitHub's mark, as uploaded to the design canvas.
+BLOBS = {
+    '/_blob/d95bdcb6396c683fe4ed9a4703d7e6ab': '/brand/google.svg',
+    '/_blob/1eeced5ec4c7507f6d0636b610ce7b16': '/brand/github.svg',
+}
 
 class Node:
     def __init__(self, tag, attrs): self.tag, self.attrs, self.kids = tag, attrs, []
@@ -138,6 +143,9 @@ def main():
         tag = '<span style="flex: 0 0 auto; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; background: #FFE9C7; color: #7A4100">{{ar.state}}</span>'
         assert body.count(tag) == 1, 'backend status tag moved in the draft'
         body = body.replace(tag, '<span style="{{ar.stateStyle}}">{{ar.state}}</span>')
+    # Images uploaded to the design canvas live at /_blob/<id> there; the app serves its own copies.
+    for blob, path in BLOBS.items(): body = body.replace(blob, path)
+    assert '/_blob/' not in body, 'an image in the draft has no copy in apps/web/public (add it to BLOBS)'
     p = P(); p.feed(body)
     jsx = kids(p.root, frozenset(), 2)
     open(out, 'w').write(f'''// Generated from design/{src.split('/')[-1]} by scripts/dc-to-jsx.py. Do not edit by hand:

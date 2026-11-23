@@ -81,7 +81,16 @@ whiteboard, with a server behind every part the draft only simulated.
   could not be seen, and a note placed with a click lost the keyboard to the
   board, so typing triggered shortcuts. Both are fixed in
   `scripts/port-board.py`.
-- **Services that need settings**: email, single sign-on, images, videos and
+- **Sign in with Google and GitHub**: added after the draft, as two more
+  buttons beside SSO and Email link (in the draft and on the design canvas
+  too). Each shows only when the server has its keys, and carries the
+  company's official logo (`apps/web/public/brand`).
+- **Google and GitHub only**: the sign-in page hides the email and password
+  form, Email link, SSO, Create account and Forgot password. In the draft
+  they are behind the "emailSignIn" tweak (off); in the app the form comes
+  back only on a server with neither Google nor GitHub set up, or for a
+  password reset link.
+- **Services that need settings**: email, Google and GitHub sign-in, single sign-on, images, videos and
   each agent run for real once their keys are set (see the README); until
   then they say they are stand-ins. Videos need a service with the OpenAI
   Videos API format, since OpenAI closed its own in September 2026.
