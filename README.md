@@ -37,7 +37,8 @@ npm start          # builds apps/web, then serves it and the API on :8787
 | `apps/server` | Fastify + SQLite. Accounts and sessions, workspaces, members and invites, boards with autosave and conflict checks, node pins, agent runs (streamed), permissions, the sandbox, the HTTP proxy, images and videos, Office export, the node market and its MCP server. |
 | `apps/web` | React + Vite. Sign in, the workspace home, the whiteboard with live editing, and read-only view links (`/v/<token>`, `/embed/<token>`). |
 | `packages/board` | `@paradigm/board`: the same whiteboard as a React component that shows a board file in your own product, with no server (the share dialog's "In your app"). See its README. |
-| `design/` | The design draft this was built from. |
+| `design/` | The design draft this was built from: the three pages and the canvas, unchanged (see `design/README.md`). |
+| `docs/` | `STATUS.md`, where the app stands against the design, and `technical-notes.md`, the design's technical doc. |
 | `scripts/dc-to-jsx.py` | Carries the draft's markup into React components (`apps/web/src/views`). Run `npm run views` after changing a draft page. |
 | `scripts/port-board.py` | Builds the whiteboard's logic (`apps/web/src/board/Board.tsx`) from the draft's own board class, swapping the methods the draft only simulated for the ones in `scripts/board-overrides`, which talk to the server. `Board.tsx` is generated: change an override and run `npm run board`. |
 
