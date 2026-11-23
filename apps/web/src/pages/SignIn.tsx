@@ -11,18 +11,12 @@ import T from '../i18n/signin.json';
 
 type Mode = 'in' | 'up';
 
-// The official Google and GitHub logos go in apps/web/public/brand (see the README there).
-// Until they are added, the buttons keep the draft's plain icons.
-const probe = (url: string) => new Promise<string>((ok) => { const im = new Image(); im.onload = () => ok(url); im.onerror = () => ok(''); im.src = url; });
-const findLogo = async (brand: string) => (await probe(`/brand/${brand}.svg`)) || (await probe(`/brand/${brand}.png`));
-
 export function SignIn() {
   const nav = useNavigate(), [params, setParams] = useSearchParams();
   const { lang, flipLang, signedIn } = useSession();
   const [s, setS] = useState({ mode: 'in' as Mode, name: '', email: '', pw: '', show: false, tried: false, sent: false, focus: null as null | string, look: { x: 0, y: 0 }, shake: 0, busy: false, server: '' });
   // Only the outside accounts the server is set up for get a button.
   const [providers, setProviders] = useState<string[]>([]);
-  const [logos, setLogos] = useState({ google: '', github: '' });
   const set = (p: Partial<typeof s>) => setS((o) => ({ ...o, ...p }));
   const botEl = useRef<HTMLElement | null>(null);
   const reset = params.get('reset');
@@ -35,11 +29,7 @@ export function SignIn() {
   };
   const fail = (e: unknown) => set({ busy: false, tried: true, server: e instanceof ApiError ? e.message : 'Something went wrong. Try again.', shake: s.shake + 1 });
 
-  useEffect(() => {
-    // The buttons appear together with their logos, so nothing swaps in after they show.
-    Promise.all([auth.providers().then((r) => r.providers.map((p) => p.id), () => [] as string[]), findLogo('google'), findLogo('github')])
-      .then(([ids, google, github]) => { setLogos({ google, github }); setProviders(ids); });
-  }, []);
+  useEffect(() => { auth.providers().then((r) => setProviders(r.providers.map((p) => p.id)), () => setProviders([])); }, []);
 
   // Arriving from an email link, or back from Google, GitHub or single sign-on.
   useEffect(() => {
@@ -119,7 +109,6 @@ export function SignIn() {
     sendLink: () => void sendLink('signin'),
     sent: s.sent && okEmail, sentMsg: t.sent.replace('{0}', s.email),
     hasGoogle: providers.includes('google'), hasGitHub: providers.includes('github'), hasSso: providers.includes('sso'),
-    logo: { google: logos.google, no_google: !logos.google, github: logos.github, no_github: !logos.github },
     primary: 'height: 48px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; background: #2457C5; color: #FFFFFF; font-size: 15px; font-weight: 500;' + (s.busy ? ' opacity: 0.7;' : ''),
     secondary: 'height: 46px; width: 100%; box-sizing: border-box; padding: 0 10px; display: flex; align-items: center; justify-content: center; gap: 8px; text-align: center; border-radius: 12px; background: #FFFFFF; border: 1px solid #DCDDE2; color: #111114; font-size: 14px;',
     links: { Workspace: '/', Main: '/board/new' },

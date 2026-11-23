@@ -1,17 +1,14 @@
 # Sign-in logos
 
-The Google and GitHub buttons on the sign-in page show the logo files in this
-folder. Until they are here, the buttons show plain line icons. Paradigm does
-not ship the logos: they belong to Google and GitHub, and each company
-provides its own files and says how they may be used.
+The logos on the sign-in page's Google and GitHub buttons. They belong to
+Google and GitHub; use them only on these buttons and only as they are.
 
-| File | Where to get it |
+| File | From |
 | --- | --- |
-| `google.svg` (or `google.png`) | The standalone Google "G" from the pre-approved assets on Google's [Sign in with Google branding guidelines](https://developers.google.com/identity/branding-guidelines) |
-| `github.svg` (or `github.png`) | The dark GitHub mark from [GitHub Logos and Usage](https://github.com/logos) |
+| `google.svg` | The "G" in Google's own HTML "Sign in with Google" button (Google Identity branding guidelines) |
+| `github.svg` | `GitHub_Invertocat_Black.svg` from GitHub's logo kit (github.com/logos), unchanged |
 
-Use the files as they come: both companies ask that their logos are not
-recoloured, stretched or otherwise changed. The page shows them at 18 by 18
-pixels, so use square files.
-
-After adding the files, run `npm run build` (or restart `npm run dev`).
+The design draft (`design/SignIn.dc.html`) shows the same files, uploaded to
+the design canvas; `scripts/dc-to-jsx.py` points the app at the copies here.
+Both companies ask that their logos are not recoloured, stretched or
+otherwise changed.
