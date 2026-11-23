@@ -4,6 +4,7 @@
   chatStart(text) {
     var self = this, s = this.state, ids = this.selIds(), items = this.baseForProposal(), byId = index(items);
     if (this.ro()) { this.flash('You can view this board but not change it'); return; }
+    if (this.props.local) { this.flash('The assistant needs a Paradigm server. Open the board there to use it.'); return; }
     this.chatStop();
     var selIt = ids.length === 1 ? byId[ids[0]] : null, area = s.area;
     var inside = area ? items.filter(function (o) { if (o.kind === 'arrow') return false; var b = bounds(o, byId); return b.x < area.x + area.w && b.x + b.w > area.x && b.y < area.y + area.h && b.y + b.h > area.y; }) : [];

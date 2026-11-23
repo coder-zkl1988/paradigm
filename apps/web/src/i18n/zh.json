@@ -802,5 +802,9 @@
  "Voice input stopped": "语音输入已停止",
  "Link copied": "链接已复制",
  "Someone else changed this board. Reload to see their version.": "有人修改了此白板。请刷新查看他们的版本。",
- "Video · {0}": "视频 · {0}"
+ "Video · {0}": "视频 · {0}",
+ "{0} opened this board": "{0} 打开了这个白板",
+ "This link was turned off.": "这个链接已关闭。",
+ "This board was moved to the trash.": "这个白板已移到回收站。",
+ "This board was deleted.": "这个白板已删除。"
 }

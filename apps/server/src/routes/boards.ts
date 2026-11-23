@@ -5,7 +5,7 @@ import type { DB } from '../db';
 import { now } from '../db';
 import { need, type UserRow } from '../lib/auth';
 import { bad, conflict, forbidden, notFound } from '../lib/errors';
-import { body, EMAIL, str } from '../lib/http';
+import { body, sse, EMAIL, str } from '../lib/http';
 import { newId, newSecret } from '../lib/ids';
 import { needRole, roleIn, type Role } from './workspaces';
 
@@ -40,7 +40,7 @@ function checkFile(file: unknown): { json: string; nodes: number } {
   return { json, nodes: items.filter((o) => o.kind === 'node').length };
 }
 
-export function boardRoutes(app: FastifyInstance, { db }: Deps) {
+export function boardRoutes(app: FastifyInstance, { db, live, origin }: Deps) {
   const summary = (r: BoardRow & { owner_name?: string; role?: string; shared_by?: string }) => ({
     id: r.id, workspaceId: r.workspace_id, title: r.title, tint: r.tint, template: r.template, nodes: r.nodes, version: r.version,
     createdAt: r.created_at, updatedAt: r.updated_at, trashedAt: r.trashed_at, owner: r.owner_name || '', ...(r.role ? { role: r.role } : {}), ...(r.shared_by ? { sharedBy: r.shared_by } : {}),
@@ -103,7 +103,22 @@ export function boardRoutes(app: FastifyInstance, { db }: Deps) {
     const settings = x.settings !== undefined ? JSON.stringify(x.settings || {}) : b.settings;
     const t = now();
     db.prepare('UPDATE boards SET file = ?, nodes = ?, title = ?, settings = ?, version = version + 1, updated_at = ? WHERE id = ?').run(json, nodes, title, settings, t, b.id);
+    live.saved(b.id, b.version + 1, { id: u.id, name: u.name }, typeof x.conn === 'string' ? x.conn : null);
     return { version: b.version + 1, updatedAt: t, nodes };
+  });
+
+  /** Live editing: says when someone saves the board, and who else has it open. */
+  app.get('/v1/boards/:id/live', async (req, reply) => {
+    const u = need(req), { b } = loadBoard(db, (req.params as { id: string }).id, u, 'viewer');
+    const s = sse(req, reply, origin(req));
+    s.onClose(live.join(b.id, { id: u.id, name: u.name }, false, (e) => s.send(e), () => s.end(), b.version));
+  });
+
+  /** The same for a view link, without an account. */
+  app.get('/v1/public/:token/live', async (req, reply) => {
+    const b = byLink(String((req.params as { token: string }).token || ''));
+    const s = sse(req, reply, origin(req));
+    s.onClose(live.join(b.id, { id: null, name: 'Guest' }, true, (e) => s.send(e), () => s.end(), b.version));
   });
 
   app.patch('/v1/boards/:id', async (req) => {
@@ -128,6 +143,7 @@ export function boardRoutes(app: FastifyInstance, { db }: Deps) {
   app.post('/v1/boards/:id/trash', async (req) => {
     const u = need(req), { b } = loadBoard(db, (req.params as { id: string }).id, u, 'editor');
     db.prepare('UPDATE boards SET trashed_at = ? WHERE id = ?').run(now(), b.id);
+    live.gone(b.id, 'trashed');
     return { ok: true };
   });
 
@@ -141,6 +157,7 @@ export function boardRoutes(app: FastifyInstance, { db }: Deps) {
     const u = need(req), { b } = loadBoard(db, (req.params as { id: string }).id, u, 'editor');
     if (!b.trashed_at) throw bad('Move the board to the trash first');
     db.prepare('DELETE FROM boards WHERE id = ?').run(b.id);
+    live.gone(b.id, 'deleted');
     return { ok: true };
   });
 
@@ -157,14 +174,18 @@ export function boardRoutes(app: FastifyInstance, { db }: Deps) {
   app.delete('/v1/boards/:id/link', async (req) => {
     const u = need(req), { b } = loadBoard(db, (req.params as { id: string }).id, u, 'editor');
     db.prepare('DELETE FROM board_links WHERE board_id = ?').run(b.id);
+    live.gone(b.id, 'link_off');
     return { ok: true };
   });
 
   /** Opens a board by its view link. No account needed; the board cannot be changed through it. */
-  app.get('/v1/public/:token', async (req) => {
-    const t = String((req.params as { token: string }).token || '');
+  const byLink = (t: string) => {
     const b = db.prepare('SELECT b.* FROM board_links l JOIN boards b ON b.id = l.board_id WHERE l.token = ? AND b.trashed_at IS NULL').get(t) as BoardRow | undefined;
     if (!b) throw notFound('This link was turned off, or the board was deleted');
+    return b;
+  };
+  app.get('/v1/public/:token', async (req) => {
+    const b = byLink(String((req.params as { token: string }).token || ''));
     const st = JSON.parse(b.settings || '{}');
     return { board: { id: b.id, title: b.title, nodes: b.nodes, version: b.version, updatedAt: b.updated_at, createdAt: b.created_at, role: 'viewer', file: JSON.parse(b.file), settings: { bg: st.bg } } };
   });

@@ -192,7 +192,7 @@ export function BoardView({ v }: { v: any }) {
                 </>) : null}
                 {it?.isSticky ? (<>
                   <span style={css("position: absolute; left: 18px; bottom: 12px; font-size: 12px; color: rgba(0,0,0,0.6); pointer-events: none")}>
-                    {v.i?.k60}
+                    {it?.byLabel}
                   </span>
                 </>) : null}
               </div>

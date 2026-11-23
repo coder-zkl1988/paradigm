@@ -65,12 +65,22 @@ whiteboard, with a server behind every part the draft only simulated.
 - **View links**: Share makes a link (`/v/<token>`) that anyone can open
   read-only, without an account. The embed code uses `/embed/<token>`, or the
   board's own address when editing is allowed (people then need access).
-- **"In your app"**: the draft's snippet names a package that does not exist
-  yet (`[PACKAGE NAME]`); it is shown as the draft has it.
+- **"In your app"**: the snippet names `@paradigm/board` (`packages/board`),
+  the same board as a React component that reads a board file with no
+  server. It is built but not yet published to npm; steps that need a server
+  say so when run there.
 - **Voice**: needs a browser with speech recognition (Chrome, Edge, Safari).
   Elsewhere the board says so and you type instead.
-- **One person at a time**: boards save with conflict checks, but two people
-  editing the same board do not see each other live.
+- **Live editing**: people on the same board see each other's changes within
+  about a second, and view links update too. Changes merge item by item, so
+  two people working on different items keep both; on the same item the
+  later save wins. The draft shows no cursors or avatars for others, so the
+  board only says when someone opens it, and a sticky note names who wrote
+  it. Live updates cover one server process.
+- **Fixed from the draft**: sticky note text took the note's own colour and
+  could not be seen, and a note placed with a click lost the keyboard to the
+  board, so typing triggered shortcuts. Both are fixed in
+  `scripts/port-board.py`.
 - **Services that need settings**: email, single sign-on, images, videos and
   each agent run for real once their keys are set (see the README); until
   then they say they are stand-ins. Videos need a service with the OpenAI

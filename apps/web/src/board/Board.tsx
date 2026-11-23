@@ -7,11 +7,14 @@
 // market, files, sharing, voice) is marked "Server:" and talks to the server.
 
 import { Component } from 'react';
-import { executeNode, contract } from '@paradigm/shared';
+import { executeNode, contract, mergeItems } from '@paradigm/shared';
 import { BoardView } from '../views/BoardView';
-import { agent as agentApi, api, backend, boards, files, fileUrl, prefs, workspaces } from '../lib/api';
+import { agent as agentApi, api, backend, boards, files, fileUrl, live, prefs, workspaces } from '../lib/api';
 import { runJs } from './script';
 import * as D from './draft';
+
+/** The "In your app" package (packages/board), named in the share dialog. */
+const PACKAGE_NAME = '@paradigm/board';
 
 const {
   ACCEPTS, AGAP, API, API_ORDER, API_USER, AREA_COL, ARROW_WEIGHTS, AVATARS, BOARD_TOOLS, BUILTIN_BACKEND, BUILTIN_SUM, CATS, CHIP_STK, CONNECTABLE,
@@ -39,6 +42,8 @@ export interface BoardProps {
   signOut(): void;
   replaceUrl(id: string): void;
   accent?: string;
+  /** No server: the board shows this file and hands every change to onChange (the "In your app" package). */
+  local?: { file: unknown; readOnly?: boolean; onChange?: (file: unknown) => void };
 }
 
 export class Board extends Component<BoardProps, any> {
@@ -71,7 +76,7 @@ export class Board extends Component<BoardProps, any> {
     this.boardRef = function (el) { if (el) self.boardEl = el; };
     this.inputRef = function (el) { if (el) self.inputEl = el; };
     this.services = {
-      backend: function (kind, body) { return backend(kind, body); },
+      backend: function (kind, body) { return self.props.local ? Promise.reject(new Error('This step runs on a Paradigm server. Open the board there to run it.')) : backend(kind, body); },
       script: function (src, input, inputs) { return new Promise(function (resolve, reject) { runJs(src, input, inputs, function (err, r) { if (err) reject(err); else resolve(r); }); }); },
       agent: function () { return Promise.reject(new Error('Agent steps run through hzStart')); }
     };
@@ -101,11 +106,12 @@ export class Board extends Component<BoardProps, any> {
   // Server: loads the board (or makes a new one), the workspaces, the person's nodes and the market.
   load() {
     var self = this, p = this.props;
-    var market = api('GET', '/v1/market/nodes').then(function (r) { setMarket(r.nodes); }).catch(function () { return null; });
-    var mine = p.viewToken || !p.me ? Promise.resolve(null) : prefs.get().then(function (r) { return r.prefs; }).catch(function () { return null; });
-    var wsP = p.viewToken || !p.me ? Promise.resolve({ workspaces: [] }) : workspaces.list();
+    var market = p.local ? Promise.resolve(null) : api('GET', '/v1/market/nodes').then(function (r) { setMarket(r.nodes); }).catch(function () { return null; });
+    var mine = p.local || p.viewToken || !p.me ? Promise.resolve(null) : prefs.get().then(function (r) { return r.prefs; }).catch(function () { return null; });
+    var wsP = p.local || p.viewToken || !p.me ? Promise.resolve({ workspaces: [] }) : workspaces.list();
     var boardP;
-    if (p.viewToken) boardP = api('GET', '/v1/public/' + encodeURIComponent(p.viewToken)).then(function (r) { return Object.assign({ role: 'viewer', settings: {} }, r.board); });
+    if (p.local) boardP = Promise.resolve({ file: p.local.file, role: p.local.readOnly ? 'viewer' : 'editor', title: '', version: 0, settings: {}, nodes: -1 });
+    else if (p.viewToken) boardP = api('GET', '/v1/public/' + encodeURIComponent(p.viewToken)).then(function (r) { return Object.assign({ role: 'viewer', settings: {} }, r.board); });
     else if (p.boardId === 'new') boardP = wsP.then(function (r) {
       var ws = r.workspaces, target = ws.find(function (w) { return !w.personal && w.role !== 'viewer'; }) || ws.find(function (w) { return w.role !== 'viewer'; }) || ws[0];
       return boards.create(target.id, {}).then(function (x) { p.replaceUrl(x.board.id); return x.board; });
@@ -125,7 +131,8 @@ export class Board extends Component<BoardProps, any> {
       self.savedPrefs = JSON.stringify(extra);
       var st = board.settings || {};
       self.savedSettings = JSON.stringify({ perms: st.perms || null, bg: st.bg || 'grid' });
-      var fresh = p.boardId === 'new' || (!items.length && !p.viewToken && (board.nodes === 0) && board.createdAt === board.updatedAt);
+      self.lastFile = p.local ? p.local.file : null;
+      var fresh = !p.local && (p.boardId === 'new' || (!items.length && !p.viewToken && (board.nodes === 0) && board.createdAt === board.updatedAt));
       self.setState(Object.assign(extra, {
         loaded: true, boardId: board.id || null, title: board.title || '', role: board.role || 'viewer', workspaces: ws, wsId: board.workspaceId || null,
         items: items, welcome: fresh && !items.length, big: fresh && !items.length,
@@ -134,13 +141,112 @@ export class Board extends Component<BoardProps, any> {
         var more = self.nodesFor(items);
         if (more) self.setState(more);
         if (items.length) self.zoomFit();
-        self.focusBoard();
+        if (!p.local) self.focusBoard();
+        self.liveStart();
       });
     }).catch(function (err) { self.setState({ loaded: true, loadError: String(err.message || err) }); });
   }
 
+  // Server: live editing. The page listens for saves by other people and for
+  // who else has the board open. A save it did not make is loaded and merged
+  // item by item with this page's unsaved changes (see mergeItems).
+  /** In your app: the host passed a file that is not the one this board last handed out. */
+  localFile(file) {
+    var items;
+    try { items = loadDoc(file); } catch (err) { this.flash(String(err.message || err)); return; }
+    this.lastFile = file; this.savedItems = items; this.skipHist = true;
+    this.setState({ items: items, selected: null, multi: [], editing: null, popover: null });
+  }
+
+  liveStart() {
+    var self = this, p = this.props, wait = 1000;
+    if (this.liveCtrl || (!this.state.boardId && !p.viewToken)) return;
+    var where = p.viewToken ? { viewToken: p.viewToken } : { boardId: this.state.boardId };
+    var connect = function () {
+      if (self.liveStopped) return;
+      var ctrl = self.liveCtrl = new AbortController();
+      live(where, function (e) { wait = 1000; self.liveEvent(e); }, ctrl.signal).then(function () { return null; }, function (err) { return err; }).then(function (err) {
+        if (self.liveStopped || self.liveGone) return;
+        // Lost the connection (or the server restarted): try again, more slowly each time.
+        if (err && err.status && err.status < 500) return;
+        self.liveTimer = setTimeout(connect, wait);
+        wait = Math.min(wait * 2, 15000);
+      });
+    };
+    connect();
+  }
+
+  liveStop() {
+    this.liveStopped = true;
+    clearTimeout(this.liveTimer); clearTimeout(this.pullTimer);
+    if (this.liveCtrl) this.liveCtrl.abort();
+  }
+
+  liveEvent(e) {
+    var self = this, me = this.props.me;
+    if (e.type === 'hello') {
+      this.liveConn = e.conn;
+      this.people = e.people;
+      if (e.version > this.version) this.livePull();
+    } else if (e.type === 'people') {
+      var before = (this.people || []).map(function (x) { return x.conn; });
+      e.people.forEach(function (x) {
+        if (x.conn !== self.liveConn && before.indexOf(x.conn) < 0 && !(me && x.id === me.id)) self.flash(fmt('{0} opened this board', x.name));
+      });
+      this.people = e.people;
+    } else if (e.type === 'saved') {
+      if (e.conn && e.conn === this.liveConn) return;
+      if (e.version > this.version) this.livePull();
+    } else if (e.type === 'gone') {
+      this.liveGone = true;
+      this.setState({ loadError: e.reason === 'link_off' ? 'This link was turned off.' : (e.reason === 'trashed' ? 'This board was moved to the trash.' : 'This board was deleted.') });
+    }
+  }
+
+  /** Loads the newest saved board and merges this page's unsaved changes into it. */
+  livePull(then) {
+    var self = this, p = this.props;
+    if (this.saving || this.drag) { this.pullAfter = true; clearTimeout(this.pullTimer); this.pullTimer = setTimeout(function () { if (self.pullAfter && !self.saving) { self.pullAfter = false; self.livePull(then); } }, 400); return; }
+    var got = p.viewToken ? api('GET', '/v1/public/' + encodeURIComponent(p.viewToken)).then(function (r) { return r.board; }) : boards.get(this.state.boardId).then(function (r) { return r.board; });
+    got.then(function (board) {
+      if (board.version <= self.version) { if (then) then(); return; }
+      if (self.saving || self.drag) { self.livePull(then); return; }
+      var remote;
+      try { remote = loadDoc(board.file); } catch (err) { self.flash(String(err.message || err)); return; }
+      var s = self.state, base = self.savedItems || [];
+      var used = index(s.items.concat(remote));
+      var m = mergeItems(base.filter(function (o) { return !o.proposed; }), s.items.filter(function (o) { return !o.proposed; }), remote, function (id) {
+        var pre = id.replace(/[0-9].*$/, '') || 'i', n;
+        do { self.seq[pre] = (self.seq[pre] || 0) + 1; n = pre + self.seq[pre]; } while (used[n]);
+        used[n] = true;
+        return n;
+      });
+      if (m.renamed[s.selected]) s = Object.assign({}, s, { selected: m.renamed[s.selected], editing: s.editing && m.renamed[s.editing] ? m.renamed[s.editing] : s.editing });
+      // A proposal from the toolbar chat is not saved; it stays on this page.
+      var items = m.items.concat(s.items.filter(function (o) { return o.proposed && !m.items.some(function (x) { return x.id === o.id; }); }));
+      var st = board.settings || {}, settings = JSON.stringify({ perms: st.perms || null, bg: st.bg || 'grid' });
+      var mineSettings = JSON.stringify({ perms: s.perms, bg: s.bg }) !== self.savedSettings;
+      self.version = board.version;
+      self.savedItems = remote;
+      var patch = { items: items, title: board.title || s.title };
+      if (!mineSettings && !p.viewToken) { self.savedSettings = settings; patch.perms = Object.assign({}, HZ_PERMS, st.perms || {}); patch.bg = st.bg === 'dots' ? 'dots' : 'grid'; }
+      else if (p.viewToken) patch.bg = st.bg === 'dots' ? 'dots' : 'grid';
+      // Someone else's change is not a step to undo here.
+      self.skipHist = true;
+      // Let go of anything that someone else deleted.
+      var has = function (id) { return items.some(function (o) { return o.id === id; }); };
+      if (s.selected !== self.state.selected) { patch.selected = s.selected; patch.editing = s.editing; }
+      if (s.selected && !has(s.selected)) { patch.selected = null; patch.popover = null; }
+      if (s.editing && !has(s.editing)) patch.editing = null;
+      if (s.multi && s.multi.some(function (id) { return !has(id); })) patch.multi = s.multi.filter(has);
+      self.setState(patch, function () { var more = self.nodesFor(items); if (more) self.setState(more); if (then) then(); });
+    }, function (err) { if (err && err.status === 404) self.liveEvent({ type: 'gone', reason: p.viewToken ? 'link_off' : 'deleted' }); });
+  }
+
   componentDidUpdate(prev, prevState) {
     if (prev.lang !== this.props.lang) this.setState({ lang: this.props.lang });
+    if (this.props.local && this.state.loaded && this.props.local.file !== this.lastFile && (!prev.local || prev.local.file !== this.props.local.file)) this.localFile(this.props.local.file);
+    if (this.props.local && prev.local && !!prev.local.readOnly !== !!this.props.local.readOnly) this.setState({ role: this.props.local.readOnly ? 'viewer' : 'editor' });
     if (prevState && prevState.mic !== this.state.mic) this.micChanged();
     if (!prevState || !this.state.loaded || !prevState.loaded) return;
     if (prevState.items !== this.state.items || prevState.library !== this.state.library || prevState.installed !== this.state.installed || prevState.mine !== this.state.mine || prevState.pins !== this.state.pins || prevState.shelf !== this.state.shelf || prevState.perms !== this.state.perms || prevState.bg !== this.state.bg) this.queueSave();
@@ -192,6 +298,7 @@ export class Board extends Component<BoardProps, any> {
     clearTimeout(this.hzTimer); clearTimeout(this.foldTimer); clearTimeout(this.toastTimer); clearTimeout(this.runTimer); clearTimeout(this.soloTimer); clearTimeout(this.moodTimer); clearTimeout(this.botTimer);
     this.clearRun();
     this.stopSpeech();
+    this.liveStop();
     if (this.saveTimer) { clearTimeout(this.saveTimer); this.saveNow(); }
   }
 
@@ -205,7 +312,8 @@ export class Board extends Component<BoardProps, any> {
   newId(prefix) {
     prefix = prefix || 'i';
     var used = index(this.state.items), id;
-    do { this.seq[prefix] = (this.seq[prefix] || 0) + 1; id = prefix + this.seq[prefix]; } while (used[id]);
+    var self = this, tag = (this.people || []).some(function (x) { return x.conn !== self.liveConn; }) && this.liveConn ? this.liveConn.replace(/[^a-z0-9]/gi, '').slice(0, 3).toLowerCase() : '';
+    do { this.seq[prefix] = (this.seq[prefix] || 0) + 1; id = prefix + this.seq[prefix] + tag; } while (used[id]);
     return id;
   }
   // Server: autosave. The board file and its settings go to the board; pins,
@@ -222,16 +330,39 @@ export class Board extends Component<BoardProps, any> {
     var self = this, s = this.state, jobs = [];
     var clean = s.items.filter(function (o) { return !o.proposed; });
     var cleanSaved = (this.savedItems || []).filter(function (o) { return !o.proposed; });
+    // In your app: the file goes back to the host instead of a server.
+    if (this.props.local) {
+      if (!sameButStatus(clean, cleanSaved)) {
+        var doc = fileDoc(clean, flowGraph(clean));
+        this.lastFile = doc; this.savedItems = clean;
+        if (this.props.local.onChange) this.props.local.onChange(doc);
+      }
+      this.setState({ saveState: 'saved' });
+      return;
+    }
     var settings = JSON.stringify({ perms: s.perms, bg: s.bg });
-    if (s.boardId && (!sameButStatus(clean, cleanSaved) || settings !== this.savedSettings)) {
-      var items = s.items;
-      jobs.push(boards.save(s.boardId, { file: fileDoc(clean, flowGraph(clean)), version: this.version, settings: { perms: s.perms, bg: s.bg } }).then(function (r) { self.version = r.version; self.savedItems = items; self.savedSettings = settings; }));
+    var conflicted = false;
+    if (s.boardId && !this.saving && (!sameButStatus(clean, cleanSaved) || settings !== this.savedSettings)) {
+      this.saving = true;
+      jobs.push(boards.save(s.boardId, { file: fileDoc(clean, flowGraph(clean)), version: this.version, settings: { perms: s.perms, bg: s.bg }, conn: this.liveConn }).then(function (r) {
+        self.version = r.version; self.savedItems = clean; self.savedSettings = settings;
+      }, function (err) {
+        // Someone saved first: merge their version in, then save again.
+        if (err && err.status === 409) { conflicted = true; return; }
+        throw err;
+      }).finally(function () { self.saving = false; }));
+    } else if (this.saving) {
+      jobs.push(new Promise(function (ok) { setTimeout(ok, 300); }).then(function () { self.queueSave(); }));
     }
     var np = JSON.stringify({ shelf: s.shelf, installed: s.installed, mine: s.mine, pins: s.pins });
     if (this.props.me && np !== this.savedPrefs) jobs.push(prefs.put({ shelf: s.shelf, installed: s.installed, mine: s.mine, pins: s.pins }).then(function () { self.savedPrefs = np; }));
-    Promise.all(jobs).then(function () { if (!self.saveTimer) self.setState({ saveState: 'saved' }); }, function (err) {
+    Promise.all(jobs).then(function () {
+      if (conflicted) { self.livePull(function () { self.queueSave(); }); return; }
+      if (self.pullAfter) { self.pullAfter = false; self.livePull(); }
+      if (!self.saveTimer && !self.saving) self.setState({ saveState: 'saved' });
+    }, function (err) {
       self.setState({ saveState: 'off' });
-      self.flash(err && err.status === 409 ? 'Someone else changed this board. Reload to see their version.' : String(err.message || err));
+      self.flash(String(err.message || err));
     });
   }
 
@@ -500,7 +631,7 @@ export class Board extends Component<BoardProps, any> {
     }
     var id = this.newId(PREFIX[kind] || 'i');
     var count = items.filter(function (o) { return o.kind === kind; }).length;
-    if (kind === 'sticky') return { id: id, kind: kind, x: pb.x, y: pb.y, w: 200, h: 200, color: STICKY_COLORS[count % STICKY_COLORS.length][0], rot: [-0.6, 0.5, -0.3, 0.7][count % 4], style: 'body', text: '' };
+    if (kind === 'sticky') return { id: id, kind: kind, x: pb.x, y: pb.y, w: 200, h: 200, color: STICKY_COLORS[count % STICKY_COLORS.length][0], rot: [-0.6, 0.5, -0.3, 0.7][count % 4], style: 'body', text: '', by: this.props.me && !this.props.me.guest ? this.props.me.name : undefined };
     if (kind === 'text') return { id: id, kind: kind, x: pb.x, y: pb.y, style: 'body', color: '#111114', text: '' };
     if (kind === 'frame') return { id: id, kind: kind, x: pb.x, y: pb.y, w: 640, h: 400, label: 'Frame ' + (count + 1), fill: '#F8F8F9' };
     if (kind === 'shape') {
@@ -583,6 +714,7 @@ export class Board extends Component<BoardProps, any> {
     if (it.kind === 'text' || it.kind === 'sticky' || (it.kind === 'node' && editable(it))) patch.editing = it.id;
     patch.welcome = false;
     this.setState(patch);
+    if (patch.editing) this.focusEditor();
   }
 
   boardDbl(e) {
@@ -926,6 +1058,7 @@ export class Board extends Component<BoardProps, any> {
   chatStart(text) {
     var self = this, s = this.state, ids = this.selIds(), items = this.baseForProposal(), byId = index(items);
     if (this.ro()) { this.flash('You can view this board but not change it'); return; }
+    if (this.props.local) { this.flash('The assistant needs a Paradigm server. Open the board there to use it.'); return; }
     this.chatStop();
     var selIt = ids.length === 1 ? byId[ids[0]] : null, area = s.area;
     var inside = area ? items.filter(function (o) { if (o.kind === 'arrow') return false; var b = bounds(o, byId); return b.x < area.x + area.w && b.x + b.w > area.x && b.y < area.y + area.h && b.y + b.h > area.y; }) : [];
@@ -1392,6 +1525,13 @@ export class Board extends Component<BoardProps, any> {
   // kept in the shape the tool ring draws: script (what it did), log (allowed
   // or blocked, in order) and pend (waiting for the person).
   hzStart(ids, after, extraStatus) {
+    if (this.props.local) {
+      // In your app there is no server: stop here, and stop the flow this step was part of.
+      this.clearRun();
+      this.setState({ running: false, mood: 'idle', items: this.state.items.map(function (o) { return ids.indexOf(o.id) >= 0 || o.status === 'running' || o.status === 'queued' ? Object.assign({}, o, { status: 'idle' }) : o; }) });
+      this.flash('Agent steps run on a Paradigm server. Open the board there to run them.');
+      return;
+    }
     var self = this, s = this.state, items = s.items, byId = index(items), hz = Object.assign({}, s.hz), patch = Object.assign({}, extraStatus || {});
     ids.forEach(function (id) { hz[id] = { harness: (HARNESS[byId[id].ntype] || HARNESS.llm).id, script: [], agent: '', log: [], pend: false, calls: {}, asking: null, live: true }; patch[id] = 'running'; });
     clearTimeout(this.foldTimer);
@@ -2466,9 +2606,9 @@ export class Board extends Component<BoardProps, any> {
       minx = Math.min(minx, b.x); miny = Math.min(miny, b.y - (it.kind === 'frame' ? 30 : 0));
       maxx = Math.max(maxx, b.x + b.w); maxy = Math.max(maxy, b.y + b.h);
     });
-    var r = this.rect(), top = 80, avail = r.height - top - 170;
+    var bare = this.props.toolbar === false && (this.props.embed || this.props.local), r = this.rect(), top = bare ? 24 : 80, avail = r.height - top - (bare ? 24 : 170);
     var bw = Math.max(1, maxx - minx), bh = Math.max(1, maxy - miny);
-    var nz = Math.round(Math.max(0.25, Math.min(1.5, (r.width - 160) / bw, avail / bh)) * 100) / 100;
+    var nz = Math.round(Math.max(0.25, Math.min(1.5, (r.width - (bare ? 48 : 160)) / bw, avail / bh)) * 100) / 100;
     this.setState({ zoom: nz, zoomMenu: false, pan: { x: (r.width - bw * nz) / 2 - minx * nz, y: top + (avail - bh * nz) / 2 - miny * nz } });
   }
 
@@ -2608,12 +2748,13 @@ export class Board extends Component<BoardProps, any> {
       o.wrap = 'off'; o.placeholder = 'Type here'; o.ariaText = 'Text';
       o.showText = !editing; o.editText = editing;
     } else if (k === 'sticky') {
-      var sc = textCss(it, accent);
+      var sc = textCss(Object.assign({}, it, { color: '#111114' }), accent);
       o.style = pos(it) + ' background: ' + it.color + '; border-radius: 3px; box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 8px 18px rgba(0,0,0,0.07); transform: rotate(' + (it.rot || 0) + 'deg);';
       o.textBox = 'position: absolute; left: 18px; right: 18px; top: 16px; bottom: 34px; overflow: hidden;';
       o.textStyle = sc + ' white-space: pre-wrap; overflow-wrap: anywhere;';
       o.taStyle = sc + ' width: 100%; height: 100%; white-space: pre-wrap;';
       o.placeholder = 'Type something'; o.ariaText = 'Sticky note text';
+      o.byLabel = it.by && !(this.props.me && this.props.me.name === it.by) ? it.by : 'You';
       o.showText = !editing; o.editText = editing;
     } else if (k === 'shape') {
       o.style = pos(it);
@@ -3039,7 +3180,7 @@ export class Board extends Component<BoardProps, any> {
         var origin = window.location.origin, tok = s.link || '…';
         var code = tab === 'link' ? origin + '/v/' + tok
           : (tab === 'embed' ? '<iframe\n  src="' + (s.embedEdit ? origin + '/b/' + s.boardId + '?embed=1' : origin + '/embed/' + tok) + (s.embedBar ? '' : (s.embedEdit ? '&' : '?') + 'toolbar=off') + '"\n  width="100%" height="480"\n  style="border: 0"></iframe>'
-          : "npm install [PACKAGE NAME]\n\nimport { Board } from '[PACKAGE NAME]';\nimport file from './board.flowboard.json';\n\n<Board file={file}" + (s.embedEdit ? ' onChange={save}' : ' readOnly') + (s.embedBar ? '' : ' toolbar={false}') + ' />');
+          : "npm install " + PACKAGE_NAME + "\n\nimport { Board } from '" + PACKAGE_NAME + "';\nimport file from './board.flowboard.json';\n\n<Board file={file}" + (s.embedEdit ? ' onChange={save}' : ' readOnly') + (s.embedBar ? '' : ' toolbar={false}') + ' />');
         var needs = tab !== 'package' && !s.signedIn;
         var chip = function (on) { return 'height: 36px; padding: 0 12px; gap: 8px; font-size: 14px; border: 1px solid ' + (on ? accent : '#DCDDE2') + ';' + (on ? ' background: ' + tint + '; color: ' + accent + ';' : ''); };
         return {
@@ -3159,7 +3300,7 @@ export class Board extends Component<BoardProps, any> {
       toggleSnap: function () { self.setState({ snap: !self.state.snap }); },
       snapTrack: 'position: relative; flex: 0 0 auto; width: 36px; height: 22px; border-radius: 999px; transition: background-color 160ms ease; background: ' + (s.snap ? accent : '#C9CBD2') + ';',
       snapKnob: 'position: absolute; top: 2px; left: ' + (s.snap ? 16 : 2) + 'px; width: 18px; height: 18px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(0,0,0,0.25); transition: left 160ms cubic-bezier(0.2, 0.8, 0.2, 1);',
-      mainStyle: 'position: relative; width: 100%; height: 100vh; min-height: 720px; overflow: hidden; user-select: none; touch-action: none; background-color: ' + (s.bg === 'dots' ? '#FCFCFD' : '#FFFFFF') + '; ' + (s.bg === 'dots'
+      mainStyle: 'position: relative; width: 100%; ' + (this.props.local ? 'height: 100%; min-height: 0;' : 'height: 100vh; min-height: 720px;') + ' overflow: hidden; user-select: none; touch-action: none; background-color: ' + (s.bg === 'dots' ? '#FCFCFD' : '#FFFFFF') + '; ' + (s.bg === 'dots'
         ? 'background-image: radial-gradient(circle at ' + dotR + 'px ' + dotR + 'px, #DCDDE2 ' + dotR + 'px, transparent ' + (dotR + 0.6) + 'px); background-size: ' + gpx + 'px ' + gpx + 'px; background-position: ' + (s.pan.x - dotR) + 'px ' + (s.pan.y - dotR) + 'px;'
         : 'background-image: linear-gradient(rgba(0,0,0,0.016) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.016) 1px, transparent 1px); background-size: ' + gpx + 'px ' + gpx + 'px; background-position: ' + s.pan.x + 'px ' + s.pan.y + 'px;'),
       onLeave: function () { if (self.state.ghost) self.setState({ ghost: null }); },
@@ -3327,6 +3468,12 @@ export class Board extends Component<BoardProps, any> {
     return trOut(out);
   }
 
+  /** The browser moves focus to the board after the press that placed a note, so give it back to the note's editor. */
+  focusEditor() {
+    var self = this;
+    setTimeout(function () { var el = self.boardEl && self.boardEl.querySelector('.wb-ta'); if (el && document.activeElement !== el) el.focus(); }, 0);
+  }
+
   // Keys that only look around, allowed on a board this person cannot change.
   roKey(e) {
     var k = e.key, mod = e.metaKey || e.ctrlKey;
@@ -3344,7 +3491,7 @@ export class Board extends Component<BoardProps, any> {
 
   render() {
     var s = this.state;
-    if (!s.loaded) return <div style={{ minHeight: '100vh', background: '#FFFFFF' }} />;
+    if (!s.loaded) return <div style={{ minHeight: this.props.local ? 0 : '100vh', background: '#FFFFFF' }} />;
     if (s.loadError) return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, fontFamily: 'Inter, sans-serif' }}>
         <p style={{ margin: 0, fontSize: 18 }}>{tr(s.loadError)}</p>
@@ -3353,7 +3500,7 @@ export class Board extends Component<BoardProps, any> {
     );
     var v = this.renderVals();
     if (this.props.embed && this.props.toolbar === false) v = Object.assign({}, v, { embedBare: true });
-    var cls = [this.ro() ? 'pd-ro' : '', this.props.embed && this.props.toolbar === false ? 'pd-embed-bare' : ''].filter(Boolean).join(' ');
+    var cls = [this.ro() ? 'pd-ro' : '', this.props.embed && this.props.toolbar === false ? 'pd-embed-bare' : '', this.props.local ? 'pd-local' : ''].filter(Boolean).join(' ');
     return <div className={cls || undefined}><BoardView v={v} /></div>;
   }
 }

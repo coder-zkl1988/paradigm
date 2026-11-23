@@ -27,7 +27,7 @@
     this.boardRef = function (el) { if (el) self.boardEl = el; };
     this.inputRef = function (el) { if (el) self.inputEl = el; };
     this.services = {
-      backend: function (kind, body) { return backend(kind, body); },
+      backend: function (kind, body) { return self.props.local ? Promise.reject(new Error('This step runs on a Paradigm server. Open the board there to run it.')) : backend(kind, body); },
       script: function (src, input, inputs) { return new Promise(function (resolve, reject) { runJs(src, input, inputs, function (err, r) { if (err) reject(err); else resolve(r); }); }); },
       agent: function () { return Promise.reject(new Error('Agent steps run through hzStart')); }
     };

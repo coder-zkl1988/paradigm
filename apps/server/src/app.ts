@@ -12,6 +12,7 @@ import { RunStore } from './agents/run';
 import { authRoutes } from './routes/auth';
 import { workspaceRoutes } from './routes/workspaces';
 import { boardRoutes } from './routes/boards';
+import { LiveBoards } from './lib/live';
 import { prefRoutes } from './routes/prefs';
 import { agentRoutes } from './routes/agent';
 import { sandboxRoutes } from './routes/sandbox';
@@ -27,6 +28,8 @@ export interface Deps {
   cfg: Config;
   mailer: Mailer;
   runs: RunStore;
+  /** Who has each board open, for live editing. */
+  live: LiveBoards;
   /** The CORS origin to answer with on streamed responses, which bypass the CORS plugin. */
   origin: (req: FastifyRequest) => string | undefined;
 }
@@ -37,8 +40,9 @@ export async function buildApp(cfg: Config, o: { db?: DB; mailer?: Mailer; logge
   const app = Fastify({ logger: o.logger ?? { level: process.env.LOG_LEVEL || 'info' }, bodyLimit: 2_000_000, trustProxy: true });
   const db = o.db || openDb(join(cfg.dataDir, 'paradigm.sqlite'));
   const runs = new RunStore();
+  const live = new LiveBoards();
   const origin = (req: FastifyRequest) => { const h = req.headers.origin; return h && cfg.webOrigins.includes(h) ? h : undefined; };
-  const deps: Deps = { db, cfg, mailer: o.mailer || (cfg.smtpUrl ? smtpMailer(app.log, cfg.smtpUrl, cfg.mailFrom) : devMailer(app.log, cfg.devMail)), runs, origin };
+  const deps: Deps = { db, cfg, mailer: o.mailer || (cfg.smtpUrl ? smtpMailer(app.log, cfg.smtpUrl, cfg.mailFrom) : devMailer(app.log, cfg.devMail)), runs, live, origin };
 
   await app.register(cors, { origin: cfg.webOrigins, credentials: false, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] });
 
@@ -73,6 +77,6 @@ export async function buildApp(cfg: Config, o: { db?: DB; mailer?: Mailer; logge
     });
   }
 
-  app.addHook('onClose', async () => { runs.close(); if (!o.db) db.close(); });
+  app.addHook('onClose', async () => { runs.close(); live.close(); if (!o.db) db.close(); });
   return Object.assign(app, { deps }) as FastifyInstance & { deps: Deps };
 }

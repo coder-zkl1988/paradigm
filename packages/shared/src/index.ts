@@ -14,3 +14,4 @@ export * from './run';
 export * from './api';
 export { NODE_STICKERS, DOCK_STICKERS, TOOL_STICKERS, STICKER_LIBRARY } from './data/stickers';
 export * from './execute';
+export * from './merge';

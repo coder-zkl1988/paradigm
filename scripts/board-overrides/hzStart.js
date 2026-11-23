@@ -2,6 +2,13 @@
   // kept in the shape the tool ring draws: script (what it did), log (allowed
   // or blocked, in order) and pend (waiting for the person).
   hzStart(ids, after, extraStatus) {
+    if (this.props.local) {
+      // In your app there is no server: stop here, and stop the flow this step was part of.
+      this.clearRun();
+      this.setState({ running: false, mood: 'idle', items: this.state.items.map(function (o) { return ids.indexOf(o.id) >= 0 || o.status === 'running' || o.status === 'queued' ? Object.assign({}, o, { status: 'idle' }) : o; }) });
+      this.flash('Agent steps run on a Paradigm server. Open the board there to run them.');
+      return;
+    }
     var self = this, s = this.state, items = s.items, byId = index(items), hz = Object.assign({}, s.hz), patch = Object.assign({}, extraStatus || {});
     ids.forEach(function (id) { hz[id] = { harness: (HARNESS[byId[id].ntype] || HARNESS.llm).id, script: [], agent: '', log: [], pend: false, calls: {}, asking: null, live: true }; patch[id] = 'running'; });
     clearTimeout(this.foldTimer);

@@ -52,6 +52,32 @@ rep("      i: s.lang === 'zh' ? I_ZH : I_EN,", "      i: Object.assign({}, s.lan
 rep("        flipLang: function () { self.setState({ lang: self.state.lang === 'zh' ? 'en' : 'zh' }); },", "        flipLang: function () { self.props.flipLang(); },")
 rep("pick: function () { self.setState({ lang: l[0], acctMenu: null }); } }; })", "pick: function () { self.props.setLang(l[0]); self.setState({ acctMenu: null }); } }; })")
 
+# ---- a placed note or text is ready to type into
+rep("    if (it.kind === 'text' || it.kind === 'sticky' || (it.kind === 'node' && editable(it))) patch.editing = it.id;\n    patch.welcome = false;\n    this.setState(patch);\n",
+    "    if (it.kind === 'text' || it.kind === 'sticky' || (it.kind === 'node' && editable(it))) patch.editing = it.id;\n    patch.welcome = false;\n    this.setState(patch);\n    if (patch.editing) this.focusEditor();\n")
+
+# ---- live editing: while others are on the board, new ids carry this page's tag so two people never make the same one
+rep("    do { this.seq[prefix] = (this.seq[prefix] || 0) + 1; id = prefix + this.seq[prefix]; } while (used[id]);\n",
+    "    var self = this, tag = (this.people || []).some(function (x) { return x.conn !== self.liveConn; }) && this.liveConn ? this.liveConn.replace(/[^a-z0-9]/gi, '').slice(0, 3).toLowerCase() : '';\n    do { this.seq[prefix] = (this.seq[prefix] || 0) + 1; id = prefix + this.seq[prefix] + tag; } while (used[id]);\n")
+
+# ---- a sticky note's colour is its paper, not its ink (the draft passed the fill to textCss, so the text was invisible)
+rep("      var sc = textCss(it, accent);\n", "      var sc = textCss(Object.assign({}, it, { color: '#111114' }), accent);\n")
+
+# ---- live editing: a sticky note keeps who wrote it, and shows "You" only on that person's page
+rep("    if (kind === 'sticky') return { id: id, kind: kind, x: pb.x, y: pb.y, w: 200, h: 200, color: STICKY_COLORS[count % STICKY_COLORS.length][0], rot: [-0.6, 0.5, -0.3, 0.7][count % 4], style: 'body', text: '' };\n",
+    "    if (kind === 'sticky') return { id: id, kind: kind, x: pb.x, y: pb.y, w: 200, h: 200, color: STICKY_COLORS[count % STICKY_COLORS.length][0], rot: [-0.6, 0.5, -0.3, 0.7][count % 4], style: 'body', text: '', by: this.props.me && !this.props.me.guest ? this.props.me.name : undefined };\n")
+rep("      o.placeholder = 'Type something'; o.ariaText = 'Sticky note text';\n",
+    "      o.placeholder = 'Type something'; o.ariaText = 'Sticky note text';\n      o.byLabel = it.by && !(this.props.me && this.props.me.name === it.by) ? it.by : 'You';\n")
+
+# ---- in your app: the board fills the box it is given, not the window
+rep("      mainStyle: 'position: relative; width: 100%; height: 100vh; min-height: 720px; overflow: hidden;",
+    "      mainStyle: 'position: relative; width: 100%; ' + (this.props.local ? 'height: 100%; min-height: 0;' : 'height: 100vh; min-height: 720px;') + ' overflow: hidden;")
+rep("npm install [PACKAGE NAME]\\n\\nimport { Board } from '[PACKAGE NAME]';", "npm install \" + PACKAGE_NAME + \"\\n\\nimport { Board } from '\" + PACKAGE_NAME + \"';")
+
+# ---- a board with no toolbars (bare embed, or the package with toolbar off) fits with small margins
+rep("    var r = this.rect(), top = 80, avail = r.height - top - 170;\n    var bw = Math.max(1, maxx - minx), bh = Math.max(1, maxy - miny);\n    var nz = Math.round(Math.max(0.25, Math.min(1.5, (r.width - 160) / bw, avail / bh)) * 100) / 100;\n",
+    "    var bare = this.props.toolbar === false && (this.props.embed || this.props.local), r = this.rect(), top = bare ? 24 : 80, avail = r.height - top - (bare ? 24 : 170);\n    var bw = Math.max(1, maxx - minx), bh = Math.max(1, maxy - miny);\n    var nz = Math.round(Math.max(0.25, Math.min(1.5, (r.width - (bare ? 48 : 160)) / bw, avail / bh)) * 100) / 100;\n")
+
 # ---- account bar: real workspaces and saving
 rep("        guestLabel: 'Guest board', guestNote: 'You are working as a guest. This board is saved on this device only.',",
     "        guestLabel: this.ro() ? (s.title || 'Board') : 'Guest board', guestNote: this.ro() ? 'You are viewing this board through a link. You cannot change it.' : 'You are working as a guest. Sign in or add an email to keep this board.',")
@@ -114,11 +140,14 @@ head = '''// @ts-nocheck
 // market, files, sharing, voice) is marked "Server:" and talks to the server.
 
 import { Component } from 'react';
-import { executeNode, contract } from '@paradigm/shared';
+import { executeNode, contract, mergeItems } from '@paradigm/shared';
 import { BoardView } from '../views/BoardView';
-import { agent as agentApi, api, backend, boards, files, fileUrl, prefs, workspaces } from '../lib/api';
+import { agent as agentApi, api, backend, boards, files, fileUrl, live, prefs, workspaces } from '../lib/api';
 import { runJs } from './script';
 import * as D from './draft';
+
+/** The "In your app" package (packages/board), named in the share dialog. */
+const PACKAGE_NAME = '@paradigm/board';
 
 const {
   ACCEPTS, AGAP, API, API_ORDER, API_USER, AREA_COL, ARROW_WEIGHTS, AVATARS, BOARD_TOOLS, BUILTIN_BACKEND, BUILTIN_SUM, CATS, CHIP_STK, CONNECTABLE,
@@ -146,11 +175,19 @@ export interface BoardProps {
   signOut(): void;
   replaceUrl(id: string): void;
   accent?: string;
+  /** No server: the board shows this file and hands every change to onChange (the "In your app" package). */
+  local?: { file: unknown; readOnly?: boolean; onChange?: (file: unknown) => void };
 }
 
 '''
 cls = cls.replace('class Component extends DCLogic {', 'export class Board extends Component<BoardProps, any> {', 1)
 extra = '''
+  /** The browser moves focus to the board after the press that placed a note, so give it back to the note's editor. */
+  focusEditor() {
+    var self = this;
+    setTimeout(function () { var el = self.boardEl && self.boardEl.querySelector('.wb-ta'); if (el && document.activeElement !== el) el.focus(); }, 0);
+  }
+
   // Keys that only look around, allowed on a board this person cannot change.
   roKey(e) {
     var k = e.key, mod = e.metaKey || e.ctrlKey;
@@ -168,7 +205,7 @@ extra = '''
 
   render() {
     var s = this.state;
-    if (!s.loaded) return <div style={{ minHeight: '100vh', background: '#FFFFFF' }} />;
+    if (!s.loaded) return <div style={{ minHeight: this.props.local ? 0 : '100vh', background: '#FFFFFF' }} />;
     if (s.loadError) return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, fontFamily: 'Inter, sans-serif' }}>
         <p style={{ margin: 0, fontSize: 18 }}>{tr(s.loadError)}</p>
@@ -177,7 +214,7 @@ extra = '''
     );
     var v = this.renderVals();
     if (this.props.embed && this.props.toolbar === false) v = Object.assign({}, v, { embedBare: true });
-    var cls = [this.ro() ? 'pd-ro' : '', this.props.embed && this.props.toolbar === false ? 'pd-embed-bare' : ''].filter(Boolean).join(' ');
+    var cls = [this.ro() ? 'pd-ro' : '', this.props.embed && this.props.toolbar === false ? 'pd-embed-bare' : '', this.props.local ? 'pd-local' : ''].filter(Boolean).join(' ');
     return <div className={cls || undefined}><BoardView v={v} /></div>;
   }
 }

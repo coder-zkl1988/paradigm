@@ -1,0 +1,19 @@
+{
+  "name": "@paradigm/board",
+  "version": "0.1.0",
+  "description": "Paradigm's whiteboard as a React component: shows a .flowboard.json board file inside your own product, and hands back every change.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "files": ["dist", "README.md"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "vite build && cp src/index.d.ts dist/index.d.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": { "react": ">=18", "react-dom": ">=18" },
+  "devDependencies": { "@vitejs/plugin-react": "^4.3.3", "vite": "^5.4.10", "typescript": "^5.6.0" }
+}

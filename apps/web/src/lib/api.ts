@@ -34,10 +34,12 @@ export async function api<T = any>(method: string, path: string, body?: unknown,
 }
 
 /** POST that answers with Server-Sent Events. Resolves when the stream ends. */
+/** Reads a Server-Sent Events response. With no body it is a GET. */
 export async function stream(path: string, body: unknown, onEvent: (e: any) => void, signal?: AbortSignal): Promise<void> {
-  const headers: Record<string, string> = { 'content-type': 'application/json', accept: 'text/event-stream' };
+  const headers: Record<string, string> = { accept: 'text/event-stream' };
+  if (body !== undefined) headers['content-type'] = 'application/json';
   if (session.token) headers.authorization = `Bearer ${session.token}`;
-  const r = await fetch(BASE + path, { method: 'POST', headers, body: JSON.stringify(body), signal });
+  const r = await fetch(BASE + path, body === undefined ? { headers, signal } : { method: 'POST', headers, body: JSON.stringify(body), signal });
   if (!r.ok) {
     let msg = `The server answered ${r.status}`;
     try { msg = (await r.json()).error || msg; } catch { /* not JSON */ }
@@ -92,7 +94,7 @@ export const boards = {
   shared: (q = '') => api<{ boards: Summary[] }>('GET', `/v1/shared?q=${encodeURIComponent(q)}`),
   create: (ws: string, p: { title?: string; template?: string | null; file?: unknown }) => api<{ board: FullBoard }>('POST', `/v1/workspaces/${ws}/boards`, p),
   get: (id: string) => api<{ board: FullBoard }>('GET', `/v1/boards/${id}`),
-  save: (id: string, p: { file: unknown; version?: number; title?: string; settings?: unknown }) => api<{ version: number; updatedAt: string }>('PUT', `/v1/boards/${id}`, p),
+  save: (id: string, p: { file: unknown; version?: number; title?: string; settings?: unknown; conn?: string }) => api<{ version: number; updatedAt: string }>('PUT', `/v1/boards/${id}`, p),
   rename: (id: string, title: string) => api('PATCH', `/v1/boards/${id}`, { title }),
   trash: (id: string) => api('POST', `/v1/boards/${id}/trash`, {}),
   restore: (id: string) => api('POST', `/v1/boards/${id}/restore`, {}),
@@ -120,6 +122,15 @@ export const agent = {
   pause: (runId: string) => api('POST', `/v1/agent/runs/${runId}/pause`, {}).catch(() => null),
   resume: (runId: string) => api('POST', `/v1/agent/runs/${runId}/resume`, {}).catch(() => null),
 };
+
+/** Live editing: who has the board open, and when someone saves it. Ends when the board or link goes away. */
+export type LiveEvent =
+  | { type: 'hello'; conn: string; version: number; people: { conn: string; id: string | null; name: string }[] }
+  | { type: 'people'; people: { conn: string; id: string | null; name: string }[] }
+  | { type: 'saved'; version: number; by: { id: string; name: string }; conn: string | null }
+  | { type: 'gone'; reason: 'trashed' | 'deleted' | 'link_off' };
+export const live = (where: { boardId?: string; viewToken?: string }, onEvent: (e: LiveEvent) => void, signal: AbortSignal) =>
+  stream(where.viewToken ? `/v1/public/${encodeURIComponent(where.viewToken)}/live` : `/v1/boards/${where.boardId}/live`, undefined, onEvent, signal);
 
 export const files = {
   export: (format: 'docx' | 'xlsx' | 'pptx', title: string, content: unknown) => api<{ url: string; name: string }>('POST', '/v1/files/export', { format, title, content }),
